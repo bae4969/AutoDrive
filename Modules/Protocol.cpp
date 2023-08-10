@@ -126,7 +126,7 @@ namespace Protocol
 		ushort val_l = val & 0xff;
 		return (val_l << 8) + val_h;
 	}
-	bool I2C::Init(int channel, ushort prescaler, ushort period, ushort pulseWidth)
+	bool I2C::Init(int channel, ushort prescaler, ushort period)
 	{
 		if (I2C_FD < 0)
 		{
@@ -138,8 +138,7 @@ namespace Protocol
 		m_group = channel / 4;
 		if (!SetFrequency(50) ||
 			!SetPrescaler(prescaler) ||
-			!SetPeriod(period) ||
-			!SetPulseWidth(pulseWidth))
+			!SetPeriod(period))
 		{
 			printf("Fail to set init value\n");
 			return false;
@@ -259,6 +258,21 @@ namespace Protocol
 		return m_period;
 	}
 
+	bool PWMMotor::Init(int channel)
+	{
+		if (!I2C::Init(channel, 9, 4095))
+		{
+			printf("Fail to init PWM motor\n");
+			return false;
+		}
+		if (!SetPulseWidth(0))
+		{
+			printf("Fail to reset PWM motor\n");
+			return false;
+		}
+
+		return true;
+	}
 	bool PWMMotor::SetMinMax(ushort min, ushort max)
 	{
 		if (min >= max)
@@ -347,7 +361,7 @@ namespace Protocol
 		const float out_max = 2500.f;
 		float highLevelTime = (degree - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 		float power = highLevelTime / 20000.0f;
-		float value32 = (int)round(power * GetPeriod());
+		float value32 = (int)round(power * 4094.0f);
 		ushort value16;
 		if (value32 < 0.0f)
 			value16 = 0;
@@ -358,22 +372,21 @@ namespace Protocol
 
 		return value16;
 	}
-	bool ServoMotor::Init(int channel, float defaultDegree, float minDegree, float maxDegree, bool isSetZero)
+	bool ServoMotor::Init(int channel, float defaultDegree, bool isSetZero)
 	{
 		m_defaultDegree = defaultDegree;
-		m_minDegree = minDegree;
-		m_maxDegree = maxDegree;
-		if (!I2C::Init(channel, 350, 4094, m_defaultDegree))
+
+		if (!I2C::Init(channel, 350, 4094))
 		{
-			printf("Fail to init steer PWM motor\n");
+			printf("Fail to init servo motor\n");
 			return false;
 		}
 		if (!isSetZero)
 			return true;
 
-		if (!SetDegreeWithTime(0))
+		if (!SetDegreeWithTime(0, 500))
 		{
-			printf("Fail to reset steer PWM motor\n");
+			printf("Fail to reset servo motor\n");
 			return false;
 		}
 
@@ -381,15 +394,21 @@ namespace Protocol
 	}
 	bool ServoMotor::SetDegreeWithTime(float degree, int millisecond)
 	{
-		if (degree > m_maxDegree)
-			degree = m_maxDegree;
-		if (degree < m_minDegree)
-			degree = m_minDegree;
-
-		int times = millisecond > 0 ? millisecond / DALTA_DUATION.count() : 1;
 		float startDegree = m_curDegree;
 		float endDegree = degree;
+		int times = millisecond > 0 ? millisecond / DALTA_DUATION.count() : 1;
 		float deltaDegree = (endDegree - startDegree) / times;
+		if (millisecond > __FLT_EPSILON__)
+		{
+			times = millisecond / DALTA_DUATION.count();
+			deltaDegree = (endDegree - startDegree) / times;
+		}
+		else
+		{
+			times = 0;
+			deltaDegree = 0.0f;
+		}
+
 		for (int i = 0; i < times; i++)
 		{
 			auto exeStart = chrono::system_clock::now();
@@ -418,17 +437,23 @@ namespace Protocol
 		m_curDegree = degree;
 		return true;
 	}
-	bool ServoMotor::SetDegreeWithSpeed(float degree, float absDeltaDegree)
+	bool ServoMotor::SetDegreeWithSpeed(float degree, float absDegreePerSecond)
 	{
-		if (degree > m_maxDegree)
-			degree = m_maxDegree;
-		if (degree < m_minDegree)
-			degree = m_minDegree;
-
 		float startDegree = m_curDegree;
 		float endDegree = degree;
-		float deltaDegree = abs(absDeltaDegree);
-		int times = abs(endDegree - startDegree) / deltaDegree;
+		float deltaDegree;
+		int times;
+		if (absDegreePerSecond > __FLT_EPSILON__)
+		{
+			deltaDegree = abs(absDegreePerSecond * 0.01f);
+			times = abs(endDegree - startDegree) / deltaDegree;
+		}
+		else
+		{
+			deltaDegree = 0.0f;
+			times = 0;
+		}
+
 		if (startDegree > endDegree)
 			deltaDegree = -deltaDegree;
 		for (int i = 0; i < times; i++)

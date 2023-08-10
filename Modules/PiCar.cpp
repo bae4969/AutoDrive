@@ -8,6 +8,7 @@
 #include <thread>
 
 using namespace std;
+using namespace cv;
 
 namespace PiCar
 {
@@ -66,11 +67,13 @@ namespace PiCar
 			printf("Fail to init floor sensor module\n");
 			return false;
 		}
-		if (!m_cameraSensor.Init()){
+		if (!m_cameraSensor.Init())
+		{
 			printf("Fail to init camera sensor module\n");
 			return false;
 		}
 
+		printf("Success to init PiCar\n");
 		return true;
 	}
 	void PiCar::Run()
@@ -101,19 +104,31 @@ namespace PiCar
 
 		thread t1([steerPtr]
 				  {
-		steerPtr->SetDegreeWithSpeed(-1000, 0.1);
-		steerPtr->SetDegreeWithSpeed(1000, 0.1);
-		steerPtr->SetDegreeWithSpeed(0, 0.1); });
+		steerPtr->SetDegreeWithSpeed(-1000, 30);
+		this_thread::sleep_for(chrono::milliseconds(500));
+		steerPtr->SetDegreeWithSpeed(0, 30);
+		this_thread::sleep_for(chrono::milliseconds(500));
+		steerPtr->SetDegreeWithSpeed(1000, 30);
+		this_thread::sleep_for(chrono::milliseconds(500));
+		steerPtr->SetDegreeWithSpeed(0, 30); });
 		thread t2([cameraPtr]
 				  {
-		cameraPtr->SetPitchDegreeWithSpeed(-1000, 0.2);
-		cameraPtr->SetPitchDegreeWithSpeed(10000, 0.2);
-		cameraPtr->SetPitchDegreeWithSpeed(0, 0.2); });
+		cameraPtr->SetPitchDegreeWithSpeed(-1000, 30);
+		this_thread::sleep_for(chrono::milliseconds(500));
+		cameraPtr->SetPitchDegreeWithSpeed(0, 30);
+		this_thread::sleep_for(chrono::milliseconds(500));
+		cameraPtr->SetPitchDegreeWithSpeed(10000, 30);
+		this_thread::sleep_for(chrono::milliseconds(500));
+		cameraPtr->SetPitchDegreeWithSpeed(0, 30); });
 		thread t3([cameraPtr]
 				  {
-		cameraPtr->SetYawDegreeWithSpeed(-1000, 0.2);
-		cameraPtr->SetYawDegreeWithSpeed(1000, 0.2);
-		cameraPtr->SetYawDegreeWithSpeed(0, 0.2); });
+		cameraPtr->SetYawDegreeWithSpeed(-1000, 30);
+		this_thread::sleep_for(chrono::milliseconds(500));
+		cameraPtr->SetYawDegreeWithSpeed(0, 30);
+		this_thread::sleep_for(chrono::milliseconds(500));
+		cameraPtr->SetYawDegreeWithSpeed(1000, 30);
+		this_thread::sleep_for(chrono::milliseconds(500));
+		cameraPtr->SetYawDegreeWithSpeed(0, 30); });
 
 		t1.join();
 		t2.join();
@@ -134,6 +149,24 @@ namespace PiCar
 	}
 	void PiCar::TestCameraSensor()
 	{
-		
+		Camera::ImageInfo img;
+
+		for(int i = 0; i < 3; i++){
+			char buf[128];
+			for(int j = 0; j < 4; j++){
+				m_cameraMotor.SetYawDegreeWithSpeed(-60 + j * 30, 60);
+				this_thread::sleep_for(chrono::milliseconds(500));
+				m_cameraSensor.GetFrame(img);
+				sprintf(buf, "./Output/AutoDrive/%d_1_%d.png", i, j);
+				imwrite(buf, img.Image);
+			}
+			for(int j = 0; j < 4; j++){
+				m_cameraMotor.SetYawDegreeWithSpeed(60 - j * 30, 60);
+				this_thread::sleep_for(chrono::milliseconds(500));
+				m_cameraSensor.GetFrame(img);
+				sprintf(buf, "./Output/AutoDrive/%d_2_%d.png", i, j);
+				imwrite(buf, img.Image);
+			}
+		}
 	}
 }

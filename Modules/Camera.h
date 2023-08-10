@@ -33,9 +33,9 @@ namespace Camera
         void InsertNewFrame();
 
     public:
-        DirectCamera(int w = 1280, int h = 960, int bufSize = 120, int frameRate = 30);
+        DirectCamera();
         ~DirectCamera();
-        bool Init();
+        bool Init(int w = 1280, int h = 960, int bufSize = 120, int frameRate = 30);
         cv::Size GetSize();
         bool GetFrame(ImageInfo& out_imageInfo, int offset = 0);
     };

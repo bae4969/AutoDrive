@@ -10,8 +10,9 @@ using namespace cv;
 
 int main()
 {
-    Camera::DirectCamera camera(1280, 960, 120, 10);
-    camera.Init();
+    Camera::DirectCamera camera;
+    if (!camera.Init(1280, 960, 120, 30))
+        return -1;
 
     const size_t averageCount = 20;
     const double sensitive = 4.0;
@@ -81,7 +82,7 @@ int main()
         {
         }
 
-        this_thread::sleep_for(chrono::milliseconds(200));
+        this_thread::sleep_for(chrono::milliseconds(100));
     }
 
     return 0;

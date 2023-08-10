@@ -8,7 +8,17 @@ using namespace cv;
 
 namespace Camera
 {
-	DirectCamera::DirectCamera(int w, int h, int bufSize, int frameRate)
+	DirectCamera::DirectCamera()
+	{
+		m_threadStop = true;
+	}
+	DirectCamera::~DirectCamera()
+	{
+		m_threadStop = true;
+		m_captureThread.join();
+		m_rasCam.release();
+	}
+	bool DirectCamera::Init(int w, int h, int bufSize, int frameRate)
 	{
 		m_threadStop = true;
 
@@ -24,13 +34,8 @@ namespace Camera
 		m_rasCam.set(CAP_PROP_FPS, m_frameRate);
 		for (auto &t_buf : m_frameBuffer)
 			t_buf.IsSet = false;
-	}
-	DirectCamera::~DirectCamera()
-	{
-		m_threadStop = true;
-	}
-	bool DirectCamera::Init()
-	{
+
+		m_rasCam.release();
 		if (!m_rasCam.open())
 		{
 			cout << "Error opening camera" << endl;

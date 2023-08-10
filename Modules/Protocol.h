@@ -55,7 +55,7 @@ namespace Protocol
 		ushort ConvertBig2Little(ushort value);
 
 	public:
-		bool Init(int channel, ushort prescaler, ushort period, ushort pulseWidth);
+		bool Init(int channel, ushort prescaler, ushort period);
 		bool SetPulseWidth(ushort value);
 		bool SetFrequency(ushort value);
 		bool SetPrescaler(ushort value);
@@ -75,6 +75,7 @@ namespace Protocol
 		float m_throttle = 0.0f;
 
 	public:
+		bool Init(int channel);
 		bool SetMinMax(ushort min, ushort max);
 		bool SetValue(ushort value);
 		bool SetThrottle(float throttle);
@@ -88,17 +89,15 @@ namespace Protocol
 	{
 	private:
 		const std::chrono::milliseconds DALTA_DUATION = std::chrono::milliseconds(10);
-		float m_minDegree = -20.0f;
-		float m_maxDegree = 20.0f;
 		float m_defaultDegree = 0.0f;
 		float m_curDegree = 0.0f;
 
 		ushort ConvertDegreeToPulseWidth(float degree);
 
 	public:
-		bool Init(int channel, float defaultDegree, float minDegree, float maxDegree, bool isSetZero = true);
+		bool Init(int channel, float defaultDegree, bool isSetZero = true);
 		bool SetDegreeWithTime(float degree, int millisecond = 0);
-		bool SetDegreeWithSpeed(float degree, float absDeltaDegree = 0.0f);
+		bool SetDegreeWithSpeed(float degree, float absDegreePerSecond = 0.0f);
 		float GetDegree();
 	};
 
