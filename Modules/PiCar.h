@@ -6,8 +6,7 @@ namespace PiCar
 	class PiCar
 	{
 	private:
-		Hardware::RearMotor m_rearMotor;
-		Hardware::SteerMotor m_steerMotor;
+		Hardware::MoveMotor m_moveMotor;
 		Hardware::CameraMotor m_cameraMotor;
 		Hardware::SonicSensor m_sonicSensor;
 		Hardware::FloorSensor m_floorSensor;
@@ -15,6 +14,8 @@ namespace PiCar
 
 	public:
 		bool Init();
+		void Release();
+		
 		void Run();
 
 		void TestRearMotor();

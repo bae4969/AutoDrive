@@ -7,17 +7,18 @@
 
 using namespace std;
 
-namespace Hardware
-{
-#define CAMERA_STEER_MIN_DEGREE -30
-#define CAMERA_STEER_MAX_DEGREE 30
+#define REAR_MIN_VALUE -2000
+#define REAR_MAX_VALUE 2000
+#define STEER_MIN_DEGREE -30
+#define STEER_MAX_DEGREE 30
 #define CAMERA_PITCH_MIN_DEGREE -30
 #define CAMERA_PITCH_MAX_DEGREE 50
 #define CAMERA_YAW_MIN_DEGREE -60
 #define CAMERA_YAW_MAX_DEGREE 60
-#define CAMERA_YAW_RIGHT_MOVE_OFFSET 12.0f
 
-	bool RearMotor::Init()
+namespace Hardware
+{
+	bool MoveMotor::Init(float defaultSteerAngle)
 	{
 		if (!m_leftDir.Init(Protocol::GPIO_PIN_REAR_LEFT_DIRECTION, true))
 		{
@@ -39,130 +40,161 @@ namespace Hardware
 			printf("Fail to init rear right PWM motor\n");
 			return false;
 		}
-
-		return true;
-	}
-	bool RearMotor::SetDirection(bool isForward)
-	{
-		if (!m_leftDir.SetOutput(!isForward))
-		{
-			printf("Fail to set rear left direction");
-			return false;
-		}
-		if (!m_rightDir.SetOutput(isForward))
-		{
-			printf("Fail to set rear right direction");
-			return false;
-		}
-
-		m_isForward = isForward;
-		return true;
-	}
-	bool RearMotor::SetReady(ushort maxValue)
-	{
-		if (0 < maxValue && maxValue <= 1000)
-		{
-			printf("Invalid max speed for rear PWM motors\n");
-			return false;
-		}
-		if (maxValue == 0)
-			maxValue = m_lastMaxSpeed;
-		if (!SetDirection(m_isForward))
-		{
-			printf("Fail to ready rear direction\n");
-			return false;
-		}
-		if (!m_leftMotor.SetMinMax(m_minSpeed, maxValue))
-		{
-			printf("Fail to set ready rear left PWM motor\n");
-			return false;
-		}
-		if (!m_rightMotor.SetMinMax(m_minSpeed, maxValue))
-		{
-			printf("Fail to set ready rear right PWM motor\n");
-			return false;
-		}
-
-		m_isReady = true;
-		m_lastMaxSpeed = maxValue;
-		return true;
-	}
-	bool RearMotor::SetStop()
-	{
-		if (!m_leftMotor.SetMinMax(0, 1))
-		{
-			printf("Fail to set stop rear left PWM motor\n");
-			return false;
-		}
-		if (!m_rightMotor.SetMinMax(0, 1))
-		{
-			printf("Fail to set stop rear right PWM motor\n");
-			return false;
-		}
-
-		m_isReady = false;
-		return true;
-	}
-	bool RearMotor::SetThrottle(float throttle)
-	{
-		if (!m_isReady)
-		{
-			printf("Fail to set throttle rear left PWM motor\n");
-		}
-		if (!m_leftMotor.SetThrottle(throttle))
-		{
-			printf("Fail to set throttle rear left PWM motor\n");
-			return false;
-		}
-		if (!m_rightMotor.SetThrottle(throttle))
-		{
-			printf("Fail to set throttle rear right PWM motor\n");
-			return false;
-		}
-
-		return true;
-	}
-
-	bool SteerMotor::Init(float defaultDegree)
-	{
-		if (!m_motor.Init(Protocol::I2C_CHANNEL_FRONT_STEER, defaultDegree))
+		if (!m_steerMotor.Init(Protocol::I2C_CHANNEL_FRONT_STEER, defaultSteerAngle))
 		{
 			printf("Fail to init steer PWM motor\n");
 			return false;
 		}
+
+		m_isStop = false;
+		SetRearSpeed(500);
+		SetRearValue(0);
+		SetSteerSpeed(50.0f);
+		SetSteerDegree(0.0f);
+		m_updateThread = thread(&MoveMotor::UpdateThreadFunc, this);
+
 		return true;
 	}
-	bool SteerMotor::SetDegreeWithTime(float degree, int millisecond)
+	void MoveMotor::Release()
 	{
-		if (degree > CAMERA_STEER_MAX_DEGREE)
-			degree = CAMERA_STEER_MAX_DEGREE;
-		if (degree < CAMERA_STEER_MIN_DEGREE)
-			degree = CAMERA_STEER_MIN_DEGREE;
+		m_isStop = true;
+		m_updateThread.join();
+		UpdateRearValue(0);
+		UpdateSteerDegree(0.0f);
+	}
 
-		if (!m_motor.SetDegreeWithTime(degree, millisecond))
+	bool MoveMotor::UpdateRearValue(int value)
+	{
+		bool isForward = value >= 0;
+		ushort absValue = abs(value);
+
+		m_rearMutex.lock();
+		bool isGood =
+			m_leftDir.SetOutput(!isForward) &&
+			m_rightDir.SetOutput(isForward) &&
+			m_leftMotor.SetValue(absValue) &&
+			m_rightMotor.SetValue(absValue);
+		m_rearMutex.unlock();
+
+		if (!isGood)
+			printf("Fail to set rear value");
+
+		return isGood;
+	}
+	bool MoveMotor::UpdateSteerDegree(float degree)
+	{
+		if (!m_steerMotor.SetDegree(degree))
 		{
 			printf("Fail to set steer servo motor\n");
 			return false;
 		}
 		return true;
 	}
-	bool SteerMotor::SetDegreeWithSpeed(float degree, float absDeltaDegree)
+	void MoveMotor::UpdateThreadFunc()
 	{
-		if (degree > CAMERA_STEER_MAX_DEGREE)
-			degree = CAMERA_STEER_MAX_DEGREE;
-		if (degree < CAMERA_STEER_MIN_DEGREE)
-			degree = CAMERA_STEER_MIN_DEGREE;
+		int curRearValue;
+		int tarRearValue;
+		int thisRearValue;
+		int delDiffRearValue;
+		int absDiffRearValue;
 
-		if (!m_motor.SetDegreeWithSpeed(degree, absDeltaDegree))
+		float curSteerDegree;
+		float tarSteerDegree;
+		float thisSteerDegree;
+		float delDiffSteerDegree;
+		float absDiffSteerDegree;
+		while (!m_isStop)
 		{
-			printf("Fail to set steer servo motor\n");
-			return false;
+			m_updateMutex.lock();
+			curRearValue = GetRearValue();
+			curSteerDegree = GetSteerDegree();
+			tarRearValue = m_targetRearValue;
+			tarSteerDegree = m_targetSteerDegree;
+			delDiffRearValue = m_deltaRearValue;
+			delDiffSteerDegree = m_deltaSteerDegree;
+			m_updateMutex.unlock();
+
+			absDiffRearValue = abs(tarRearValue - curRearValue);
+			if (absDiffRearValue >= 1)
+			{
+				if (absDiffRearValue > delDiffRearValue)
+					absDiffRearValue = delDiffRearValue;
+
+				if (tarRearValue > curRearValue)
+					thisRearValue = curRearValue + absDiffRearValue;
+				else
+					thisRearValue = curRearValue - absDiffRearValue;
+
+				UpdateRearValue(thisRearValue);
+			}
+
+			absDiffSteerDegree = abs(tarSteerDegree - curSteerDegree);
+			if (absDiffSteerDegree >= FLT_EPSILON)
+			{
+				if (absDiffSteerDegree > delDiffSteerDegree)
+					absDiffSteerDegree = delDiffSteerDegree;
+
+				if (tarSteerDegree > curSteerDegree)
+					thisSteerDegree = curSteerDegree + absDiffSteerDegree;
+				else
+					thisSteerDegree = curSteerDegree - absDiffSteerDegree;
+
+				UpdateSteerDegree(thisSteerDegree);
+			}
+
+			this_thread::sleep_for(DALTA_DUATION);
 		}
-		return true;
 	}
-	float SteerMotor::GetDegree()
+
+	bool MoveMotor::StopRearNow()
 	{
-		return m_motor.GetDegree();
+		return UpdateRearValue(0);
+	}
+	void MoveMotor::SetRearSpeed(int valuePerSecond)
+	{
+		m_updateMutex.lock();
+		m_deltaRearValue = abs(round(valuePerSecond * 0.01));
+		m_updateMutex.unlock();
+	}
+	void MoveMotor::SetRearValue(int value)
+	{
+		if (value > REAR_MAX_VALUE)
+			value = REAR_MAX_VALUE;
+		if (value < REAR_MIN_VALUE)
+			value = REAR_MIN_VALUE;
+
+		m_updateMutex.lock();
+		m_targetRearValue = value;
+		m_updateMutex.unlock();
+	}
+	int MoveMotor::GetRearValue()
+	{
+		int value = m_leftMotor.GetValue();
+		if (m_leftDir.GetOutput() > 0)
+			value = -value;
+		return value;
+	}
+
+	void MoveMotor::SetSteerSpeed(float degreePerSecond)
+	{
+		m_updateMutex.lock();
+		m_deltaSteerDegree = abs(degreePerSecond * 0.01f);
+		m_updateMutex.unlock();
+	}
+	void MoveMotor::SetSteerDegree(float degree)
+	{
+		if (degree > STEER_MAX_DEGREE)
+			degree = STEER_MAX_DEGREE;
+		if (degree < STEER_MIN_DEGREE)
+			degree = STEER_MIN_DEGREE;
+
+		m_updateMutex.lock();
+		m_targetSteerDegree = degree;
+		m_updateMutex.unlock();
+	}
+	float MoveMotor::GetSteerDegree()
+	{
+		return m_steerMotor.GetDegree();
 	}
 
 	bool CameraMotor::Init(float defaultPitchDegree, float defaultYawDegree)
@@ -177,93 +209,140 @@ namespace Hardware
 			printf("Fail to init steer PWM motor\n");
 			return false;
 		}
+
+		m_isStop = false;
+		SetPitchSpeed(50.0f);
+		SetPitchDegree(0.0f);
+		SetYawSpeed(50.0f);
+		SetYawDegree(0.0f);
+		m_updateThread = thread(&CameraMotor::UpdateThreadFunc, this);
+
 		return true;
 	}
-	bool CameraMotor::SetPitchDegreeWithTime(float degree, int millisecond)
+	void CameraMotor::Release()
 	{
-		if (degree > CAMERA_PITCH_MAX_DEGREE)
-			degree = CAMERA_PITCH_MAX_DEGREE;
-		if (degree < CAMERA_PITCH_MIN_DEGREE)
-			degree = CAMERA_PITCH_MIN_DEGREE;
+		m_isStop = true;
+		m_updateThread.join();
+		UpdatePitchDegree(0.0f);
+		UpdateYawDegree(0.0f);
+	}
 
-		if (!m_pitchMotor.SetDegreeWithTime(-degree, millisecond))
+	bool CameraMotor::UpdatePitchDegree(float degree)
+	{
+		if (!m_pitchMotor.SetDegree(-degree))
 		{
 			printf("Fail to set camera pitch servo motor\n");
 			return false;
 		}
 		return true;
 	}
-	bool CameraMotor::SetPitchDegreeWithSpeed(float degree, float absDeltaDegree)
+	bool CameraMotor::UpdateYawDegree(float degree)
+	{
+		if (!m_yawMotor.SetDegree(-degree))
+		{
+			printf("Fail to set camera yaw servo motor\n");
+			return false;
+		}
+		return true;
+	}
+	void CameraMotor::UpdateThreadFunc()
+	{
+		float curPitchDegree;
+		float tarPitchDegree;
+		float thisPitchDegree;
+		float delDiffPitchDegree;
+		float absDiffPitchDegree;
+
+		float curYawDegree;
+		float tarYawDegree;
+		float thisYawDegree;
+		float delDiffYawDegree;
+		float absDiffYawDegree;
+		while (!m_isStop)
+		{
+			m_updateMutex.lock();
+			curPitchDegree = GetPitchDegree();
+			curYawDegree = GetYawDegree();
+			tarPitchDegree = m_targetPitchDegree;
+			tarYawDegree = m_targetYawDegree;
+			delDiffPitchDegree = m_deltaPitchDegree;
+			delDiffYawDegree = m_deltaYawDegree;
+			m_updateMutex.unlock();
+
+			absDiffPitchDegree = abs(tarPitchDegree - curPitchDegree);
+			if (absDiffPitchDegree >= FLT_EPSILON)
+			{
+				if (absDiffPitchDegree > delDiffPitchDegree)
+					absDiffPitchDegree = delDiffPitchDegree;
+
+				if (tarPitchDegree > curPitchDegree)
+					thisPitchDegree = curPitchDegree + absDiffPitchDegree;
+				else
+					thisPitchDegree = curPitchDegree - absDiffPitchDegree;
+
+				UpdatePitchDegree(thisPitchDegree);
+			}
+
+			absDiffYawDegree = abs(tarYawDegree - curYawDegree);
+			if (absDiffYawDegree >= FLT_EPSILON)
+			{
+				if (absDiffYawDegree > delDiffYawDegree)
+					absDiffYawDegree = delDiffYawDegree;
+
+				if (tarYawDegree > curYawDegree)
+					thisYawDegree = curYawDegree + absDiffYawDegree;
+				else
+					thisYawDegree = curYawDegree - absDiffYawDegree;
+
+				UpdateYawDegree(thisYawDegree);
+			}
+
+			this_thread::sleep_for(DALTA_DUATION);
+		}
+	}
+
+	void CameraMotor::SetPitchSpeed(float degreePerSecond)
+	{
+		m_updateMutex.lock();
+		m_deltaPitchDegree = abs(degreePerSecond * 0.01f);
+		m_updateMutex.unlock();
+	}
+	void CameraMotor::SetPitchDegree(float degree)
 	{
 		if (degree > CAMERA_PITCH_MAX_DEGREE)
 			degree = CAMERA_PITCH_MAX_DEGREE;
 		if (degree < CAMERA_PITCH_MIN_DEGREE)
 			degree = CAMERA_PITCH_MIN_DEGREE;
 
-		if (!m_pitchMotor.SetDegreeWithSpeed(-degree, absDeltaDegree))
-		{
-			printf("Fail to set camera pitch servo motor\n");
-			return false;
-		}
-		return true;
-	}
-	bool CameraMotor::SetYawDegreeWithTime(float degree, int millisecond)
-	{
-		if (degree > CAMERA_YAW_MAX_DEGREE)
-			degree = CAMERA_YAW_MAX_DEGREE;
-		if (degree < CAMERA_YAW_MIN_DEGREE)
-			degree = CAMERA_YAW_MIN_DEGREE;
-
-		float t_degree = degree;
-		if (t_degree > -m_yawMotor.GetDegree())
-			t_degree += CAMERA_YAW_RIGHT_MOVE_OFFSET;
-
-		if (!m_yawMotor.SetDegreeWithTime(-t_degree, millisecond))
-		{
-			printf("Fail to set camera yaw servo motor\n");
-			return false;
-		}
-		if (t_degree != degree)
-			if (!m_yawMotor.SetDegreeWithTime(-degree))
-			{
-				printf("Fail to set camera yaw servo motor\n");
-				return false;
-			}
-
-		return true;
-	}
-	bool CameraMotor::SetYawDegreeWithSpeed(float degree, float absDeltaDegree)
-	{
-		if (degree > CAMERA_YAW_MAX_DEGREE)
-			degree = CAMERA_YAW_MAX_DEGREE;
-		if (degree < CAMERA_YAW_MIN_DEGREE)
-			degree = CAMERA_YAW_MIN_DEGREE;
-
-		float t_degree = degree;
-		if (t_degree > -m_yawMotor.GetDegree())
-			t_degree += CAMERA_YAW_RIGHT_MOVE_OFFSET;
-
-		if (!m_yawMotor.SetDegreeWithSpeed(-t_degree, absDeltaDegree))
-		{
-			printf("Fail to set camera yaw servo motor\n");
-			return false;
-		}
-		if (t_degree != degree)
-			if (!m_yawMotor.SetDegreeWithSpeed(-degree))
-			{
-				printf("Fail to set camera yaw servo motor\n");
-				return false;
-			}
-
-		return true;
+		m_updateMutex.lock();
+		m_targetPitchDegree = degree;
+		m_updateMutex.unlock();
 	}
 	float CameraMotor::GetPitchDegree()
 	{
-		return m_pitchMotor.GetDegree();
+		return -m_pitchMotor.GetDegree();
+	}
+
+	void CameraMotor::SetYawSpeed(float degreePerSecond)
+	{
+		m_updateMutex.lock();
+		m_deltaYawDegree = abs(degreePerSecond * 0.01f);
+		m_updateMutex.unlock();
+	}
+	void CameraMotor::SetYawDegree(float degree)
+	{
+		if (degree > CAMERA_YAW_MAX_DEGREE)
+			degree = CAMERA_YAW_MAX_DEGREE;
+		if (degree < CAMERA_YAW_MIN_DEGREE)
+			degree = CAMERA_YAW_MIN_DEGREE;
+
+		m_updateMutex.lock();
+		m_targetYawDegree = degree;
+		m_updateMutex.unlock();
 	}
 	float CameraMotor::GetYawDegree()
 	{
-		return m_yawMotor.GetDegree();
+		return -m_yawMotor.GetDegree();
 	}
 
 	bool SonicSensor::Init()

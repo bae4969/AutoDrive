@@ -2,54 +2,76 @@
 #include "Protocol.h"
 #include "Camera.h"
 #include <chrono>
+#include <mutex>
+#include <thread>
 
 namespace Hardware
 {
 	typedef unsigned short ushort;
 	typedef Camera::DirectCamera CameraSensor;
-	class RearMotor
+	class MoveMotor
 	{
 	private:
 		Protocol::GPIO m_leftDir;
 		Protocol::GPIO m_rightDir;
 		Protocol::PWMMotor m_leftMotor;
 		Protocol::PWMMotor m_rightMotor;
-		bool m_isReady = false;
-		bool m_isForward = true;
-		const ushort m_minSpeed = 1000;
-		ushort m_lastMaxSpeed = 2000;
+		Protocol::ServoMotor m_steerMotor;
+		const std::chrono::milliseconds DALTA_DUATION = std::chrono::milliseconds(10);
+		bool m_isStop;
+		int m_targetRearValue;
+		int m_deltaRearValue;
+		float m_targetSteerDegree;
+		float m_deltaSteerDegree;
+		std::mutex m_updateMutex;
+		std::mutex m_rearMutex;
+		std::thread m_updateThread;
+
+		bool UpdateRearValue(int value);
+		bool UpdateSteerDegree(float degree);
+		void UpdateThreadFunc();
 
 	public:
-		bool Init();
-		bool SetDirection(bool isForward);
-		bool SetReady(ushort maxValue = 0);
-		bool SetStop();
-		bool SetThrottle(float throttle);
-	};
-	class SteerMotor
-	{
-	private:
-		Protocol::ServoMotor m_motor;
+		bool Init(float defaultSteerDegree);
+		void Release();
 
-	public:
-		bool Init(float defaultDegree);
-		bool SetDegreeWithTime(float degree, int millisecond = 0);
-		bool SetDegreeWithSpeed(float degree, float absDeltaDegree = 0.0);
-		float GetDegree();
+		bool StopRearNow();
+		void SetRearSpeed(int valuePerSecond);
+		void SetRearValue(int value);
+		int GetRearValue();
+
+		void SetSteerSpeed(float degreePerSecond);
+		void SetSteerDegree(float degree);
+		float GetSteerDegree();
 	};
 	class CameraMotor
 	{
 	private:
 		Protocol::ServoMotor m_pitchMotor;
 		Protocol::ServoMotor m_yawMotor;
+		const std::chrono::milliseconds DALTA_DUATION = std::chrono::milliseconds(10);
+		bool m_isStop;
+		float m_targetPitchDegree;
+		float m_deltaPitchDegree;
+		float m_targetYawDegree;
+		float m_deltaYawDegree;
+		std::mutex m_updateMutex;
+		std::thread m_updateThread;
+
+		bool UpdatePitchDegree(float degree);
+		bool UpdateYawDegree(float degree);
+		void UpdateThreadFunc();
 
 	public:
 		bool Init(float defaultPitchDegree, float defaultYawDegree);
-		bool SetPitchDegreeWithTime(float degree, int millisecond = 0);
-		bool SetPitchDegreeWithSpeed(float degree, float absDeltaDegree = 0.0f);
-		bool SetYawDegreeWithTime(float degree, int millisecond = 0);
-		bool SetYawDegreeWithSpeed(float degree, float absDeltaDegree = 0.0f);
+		void Release();
+
+		void SetPitchSpeed(float degreePerSecond);
+		void SetPitchDegree(float degree);
 		float GetPitchDegree();
+
+		void SetYawSpeed(float degreePerSecond);
+		void SetYawDegree(float degree);
 		float GetYawDegree();
 	};
 	class SonicSensor

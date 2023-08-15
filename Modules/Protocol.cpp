@@ -102,6 +102,15 @@ namespace Protocol
 
 		return true;
 	}
+	int GPIO::GetOutput(){
+		if (!m_isOut)
+		{
+			printf("This GPIO %d is not out mode\n", m_pinIdx);
+			return -1;
+		}
+
+		return m_isHigh;
+	}
 	int GPIO::GetInput()
 	{
 		if (!IsSetGPIO)
@@ -140,7 +149,7 @@ namespace Protocol
 			!SetPrescaler(prescaler) ||
 			!SetPeriod(period))
 		{
-			printf("Fail to set init value\n");
+			printf("Fail to init I2C %d\n", m_channel);
 			return false;
 		}
 
@@ -156,8 +165,10 @@ namespace Protocol
 
 		int reg = PULSE_WIDTH_REG_OFFSET + m_channel;
 		int ret = wiringPiI2CWriteReg16(I2C_FD, reg, ConvertBig2Little(value));
-		if (ret < 0)
+		if (ret < 0){
+			printf("Fail to write I2C %d pulse width\n", reg);
 			return false;
+		}
 
 		m_pulseWidth = value;
 		return true;
@@ -219,8 +230,10 @@ namespace Protocol
 
 		int reg = PRESCALER_REG_OFFSET + m_group;
 		int ret = wiringPiI2CWriteReg16(I2C_FD, reg, ConvertBig2Little(value));
-		if (ret < 0)
+		if (ret < 0){
+			printf("Fail to write I2C %d prescaler\n", reg);
 			return false;
+		}
 
 		m_prescaler = value;
 		return true;
@@ -235,8 +248,10 @@ namespace Protocol
 
 		int reg = PERIOD_REG_OFFSET + m_group;
 		int ret = wiringPiI2CWriteReg16(I2C_FD, reg, ConvertBig2Little(value));
-		if (ret < 0)
+		if (ret < 0){
+			printf("Fail to write I2C %d period\n", reg);
 			return false;
+		}
 
 		m_period = value;
 		return true;
@@ -260,96 +275,21 @@ namespace Protocol
 
 	bool PWMMotor::Init(int channel)
 	{
-		if (!I2C::Init(channel, 9, 4095))
-		{
-			printf("Fail to init PWM motor\n");
-			return false;
-		}
-		if (!SetPulseWidth(0))
-		{
-			printf("Fail to reset PWM motor\n");
-			return false;
-		}
-
-		return true;
-	}
-	bool PWMMotor::SetMinMax(ushort min, ushort max)
-	{
-		if (min >= max)
-		{
-			printf("Min value is bigger than max value\n");
-			return false;
-		}
-		ushort t_minValue = min;
-		ushort t_maxValue = max;
-		ushort t_curValue = m_curValue;
-		if (t_curValue < t_minValue)
-			t_curValue = t_minValue;
-		if (t_curValue > t_maxValue)
-			t_curValue = t_maxValue;
-
-		float t_throttle = float(t_curValue - t_minValue) / float(t_maxValue - t_minValue);
-		if (!SetPulseWidth(t_curValue))
-		{
-			printf("Fail to set min max value\n");
-			return false;
-		}
-
-		m_minValue = t_minValue;
-		m_maxValue = t_maxValue;
-		m_curValue = t_curValue;
-		m_throttle = t_throttle;
-		return true;
+		return 
+		I2C::Init(channel, 9, 4095)&&
+		SetPulseWidth(0);
 	}
 	bool PWMMotor::SetValue(ushort value)
 	{
-		if (value < m_minValue)
-			value = m_minValue;
-		if (value > m_maxValue)
-			value = m_maxValue;
-		float t_throttle = float(value - m_minValue) / float(m_maxValue - m_minValue);
 		if (!SetPulseWidth(value))
-		{
-			printf("Fail to set min max value\n");
 			return false;
-		}
 
 		m_curValue = value;
-		m_throttle = t_throttle;
 		return true;
 	}
-	bool PWMMotor::SetThrottle(float throttle)
-	{
-		if (throttle < 0.0f)
-			throttle = 0.0f;
-		if (throttle > 1.0f)
-			throttle = 1.0f;
-		ushort t_curValue = throttle * float(m_maxValue - m_minValue) + m_minValue;
-		if (!SetPulseWidth(t_curValue))
-		{
-			printf("Fail to set min max value\n");
-			return false;
-		}
-
-		m_curValue = t_curValue;
-		m_throttle = throttle;
-		return true;
-	}
-	ushort PWMMotor::GetMinValue()
-	{
-		return m_minValue;
-	}
-	ushort PWMMotor::GetMaxValue()
-	{
-		return m_maxValue;
-	}
-	ushort PWMMotor::GetCurrnetValue()
+	ushort PWMMotor::GetValue()
 	{
 		return m_curValue;
-	}
-	float PWMMotor::GetThrottle()
-	{
-		return m_throttle;
 	}
 
 	ushort ServoMotor::ConvertDegreeToPulseWidth(float degree)
@@ -377,109 +317,18 @@ namespace Protocol
 		m_defaultDegree = defaultDegree;
 
 		if (!I2C::Init(channel, 350, 4094))
-		{
-			printf("Fail to init servo motor\n");
 			return false;
-		}
+
 		if (!isSetZero)
 			return true;
 
-		if (!SetDegreeWithTime(0, 500))
-		{
-			printf("Fail to reset servo motor\n");
-			return false;
-		}
-
-		return true;
+		return SetDegree(0);
 	}
-	bool ServoMotor::SetDegreeWithTime(float degree, int millisecond)
+	bool ServoMotor::SetDegree(float degree)
 	{
-		float startDegree = m_curDegree;
-		float endDegree = degree;
-		int times = millisecond > 0 ? millisecond / DALTA_DUATION.count() : 1;
-		float deltaDegree = (endDegree - startDegree) / times;
-		if (millisecond > __FLT_EPSILON__)
-		{
-			times = millisecond / DALTA_DUATION.count();
-			deltaDegree = (endDegree - startDegree) / times;
-		}
-		else
-		{
-			times = 0;
-			deltaDegree = 0.0f;
-		}
-
-		for (int i = 0; i < times; i++)
-		{
-			auto exeStart = chrono::system_clock::now();
-			float t_degree = startDegree + deltaDegree * i;
-
-			ushort pulseWidth = ConvertDegreeToPulseWidth(t_degree);
-			if (!SetPulseWidth(pulseWidth))
-			{
-				printf("Fail to set servo motor degree\n");
-				return false;
-			}
-
-			auto exeEnd = chrono::system_clock::now();
-			auto sleepTime = chrono::milliseconds(DALTA_DUATION) - (exeEnd - exeStart);
-			m_curDegree = t_degree;
-			this_thread::sleep_for(sleepTime);
-		}
-
 		ushort pulseWidth = ConvertDegreeToPulseWidth(degree);
 		if (!SetPulseWidth(pulseWidth))
-		{
-			printf("Fail to set servo motor degree\n");
 			return false;
-		}
-
-		m_curDegree = degree;
-		return true;
-	}
-	bool ServoMotor::SetDegreeWithSpeed(float degree, float absDegreePerSecond)
-	{
-		float startDegree = m_curDegree;
-		float endDegree = degree;
-		float deltaDegree;
-		int times;
-		if (absDegreePerSecond > __FLT_EPSILON__)
-		{
-			deltaDegree = abs(absDegreePerSecond * 0.01f);
-			times = abs(endDegree - startDegree) / deltaDegree;
-		}
-		else
-		{
-			deltaDegree = 0.0f;
-			times = 0;
-		}
-
-		if (startDegree > endDegree)
-			deltaDegree = -deltaDegree;
-		for (int i = 0; i < times; i++)
-		{
-			auto exeStart = chrono::system_clock::now();
-			float t_degree = startDegree + deltaDegree * i;
-
-			ushort pulseWidth = ConvertDegreeToPulseWidth(t_degree);
-			if (!SetPulseWidth(pulseWidth))
-			{
-				printf("Fail to set servo motor degree\n");
-				return false;
-			}
-
-			auto exeEnd = chrono::system_clock::now();
-			auto sleepTime = chrono::milliseconds(DALTA_DUATION) - (exeEnd - exeStart);
-			m_curDegree = t_degree;
-			this_thread::sleep_for(sleepTime);
-		}
-
-		ushort pulseWidth = ConvertDegreeToPulseWidth(degree);
-		if (!SetPulseWidth(pulseWidth))
-		{
-			printf("Fail to set servo motor degree\n");
-			return false;
-		}
 
 		m_curDegree = degree;
 		return true;

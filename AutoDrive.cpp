@@ -9,6 +9,7 @@ int main()
         return -1;
 
     car.Run();
+    car.Release();
 
     return 0;
 }

@@ -42,16 +42,11 @@ namespace PiCar
 			printf("Fail to init protocol\n");
 			return false;
 		}
-		if (!m_rearMotor.Init())
-		{
-			printf("Fail to init rear motor module\n");
-			return false;
-		};
-		if (!m_steerMotor.Init(defaultSteerAngle))
+		if (!m_moveMotor.Init(defaultSteerAngle))
 		{
 			printf("Fail to init steer motor module\n");
 			return false;
-		};
+		}
 		if (!m_cameraMotor.Init(defaultPitchAngle, defaultYawAngle))
 		{
 			printf("Fail to init camera motor module\n");
@@ -76,64 +71,103 @@ namespace PiCar
 		printf("Success to init PiCar\n");
 		return true;
 	}
+	void PiCar::Release(){
+		m_moveMotor.Release();
+		m_cameraMotor.Release();
+	}
+
 	void PiCar::Run()
 	{
-		TestCameraSensor();
+		bool isStop = false;
+		Camera::ImageInfo img;
+		while (!isStop)
+		{
+			if (m_cameraSensor.GetFrame(img))
+				imshow("TEST", img.Image);
+
+			int temp_i;
+			float temp_f;
+			int keyVal = waitKey(100);
+			switch (keyVal)
+			{
+			case 'Q':
+			case 'q':
+				isStop = true;
+				break;
+
+				// rear
+			case 'W':
+			case 'w':
+				temp_i = m_moveMotor.GetRearValue() + 100;
+				m_moveMotor.SetRearValue(temp_i);
+				break;
+			case 'S':
+			case 's':
+				temp_i = m_moveMotor.GetRearValue() - 100;
+				m_moveMotor.SetRearValue(temp_i);
+				break;
+			case 'X':
+			case 'x':
+				m_moveMotor.SetRearValue(0);
+				break;
+			case 'Z':
+			case 'z':
+				m_moveMotor.StopRearNow();
+				break;
+
+				// steer
+			case 'A':
+			case 'a':
+				temp_f = m_moveMotor.GetSteerDegree() - 5.0f;
+				m_moveMotor.SetSteerDegree(temp_f);
+				break;
+			case 'D':
+			case 'd':
+				temp_f = m_moveMotor.GetSteerDegree() + 5.0f;
+				m_moveMotor.SetSteerDegree(temp_f);
+				break;
+			case 'F':
+			case 'f':
+				m_moveMotor.SetSteerDegree(0.0f);
+				break;
+
+				// camera pitch
+			case 'O':
+			case 'o':
+				temp_f = m_cameraMotor.GetPitchDegree() + 10.0f;
+				m_cameraMotor.SetPitchDegree(temp_f);
+				break;
+			case 'L':
+			case 'l':
+				temp_f = m_cameraMotor.GetPitchDegree() - 10.0f;
+				m_cameraMotor.SetPitchDegree(temp_f);
+				break;
+			case '.':
+			case '>':
+				m_cameraMotor.SetPitchDegree(0.0f);
+				break;
+
+				// camera yaw
+			case 'K':
+			case 'k':
+				temp_f = m_cameraMotor.GetYawDegree() - 10.0f;
+				m_cameraMotor.SetYawDegree(temp_f);
+				break;
+			case ':':
+			case ';':
+				temp_f = m_cameraMotor.GetYawDegree() + 10.0f;
+				m_cameraMotor.SetYawDegree(temp_f);
+				break;
+			case 'J':
+			case 'j':
+				m_cameraMotor.SetYawDegree(0.0f);
+				break;
+			}
+		}
 
 		return;
 	}
 
-	void PiCar::TestRearMotor()
-	{
-		m_rearMotor.SetDirection(true);
-		m_rearMotor.SetReady(2000);
-		m_rearMotor.SetThrottle(0.3f);
-		this_thread::sleep_for(chrono::seconds(1));
-		m_rearMotor.SetThrottle(0.0f);
-		this_thread::sleep_for(chrono::seconds(1));
-		m_rearMotor.SetDirection(false);
-		m_rearMotor.SetReady(2000);
-		m_rearMotor.SetThrottle(0.3f);
-		this_thread::sleep_for(chrono::seconds(1));
-		m_rearMotor.SetStop();
-	}
-	void PiCar::TestServoMotor()
-	{
-		Hardware::SteerMotor *steerPtr = &m_steerMotor;
-		Hardware::CameraMotor *cameraPtr = &m_cameraMotor;
-
-		thread t1([steerPtr]
-				  {
-		steerPtr->SetDegreeWithSpeed(-1000, 30);
-		this_thread::sleep_for(chrono::milliseconds(500));
-		steerPtr->SetDegreeWithSpeed(0, 30);
-		this_thread::sleep_for(chrono::milliseconds(500));
-		steerPtr->SetDegreeWithSpeed(1000, 30);
-		this_thread::sleep_for(chrono::milliseconds(500));
-		steerPtr->SetDegreeWithSpeed(0, 30); });
-		thread t2([cameraPtr]
-				  {
-		cameraPtr->SetPitchDegreeWithSpeed(-1000, 30);
-		this_thread::sleep_for(chrono::milliseconds(500));
-		cameraPtr->SetPitchDegreeWithSpeed(0, 30);
-		this_thread::sleep_for(chrono::milliseconds(500));
-		cameraPtr->SetPitchDegreeWithSpeed(10000, 30);
-		this_thread::sleep_for(chrono::milliseconds(500));
-		cameraPtr->SetPitchDegreeWithSpeed(0, 30); });
-		thread t3([cameraPtr]
-				  {
-		cameraPtr->SetYawDegreeWithSpeed(-1000, 30);
-		this_thread::sleep_for(chrono::milliseconds(500));
-		cameraPtr->SetYawDegreeWithSpeed(0, 30);
-		this_thread::sleep_for(chrono::milliseconds(500));
-		cameraPtr->SetYawDegreeWithSpeed(1000, 30);
-		this_thread::sleep_for(chrono::milliseconds(500));
-		cameraPtr->SetYawDegreeWithSpeed(0, 30); });
-
-		t1.join();
-		t2.join();
-		t3.join();
-	}
 	void PiCar::TestSimpleSensor()
 	{
 		double value;
@@ -151,17 +185,20 @@ namespace PiCar
 	{
 		Camera::ImageInfo img;
 
-		for(int i = 0; i < 3; i++){
+		for (int i = 0; i < 3; i++)
+		{
 			char buf[128];
-			for(int j = 0; j < 4; j++){
-				m_cameraMotor.SetYawDegreeWithSpeed(-60 + j * 30, 60);
+			for (int j = 0; j < 4; j++)
+			{
+				m_cameraMotor.SetYawDegree(-60 + j * 30);
 				this_thread::sleep_for(chrono::milliseconds(500));
 				m_cameraSensor.GetFrame(img);
 				sprintf(buf, "./Output/AutoDrive/%d_1_%d.png", i, j);
 				imwrite(buf, img.Image);
 			}
-			for(int j = 0; j < 4; j++){
-				m_cameraMotor.SetYawDegreeWithSpeed(60 - j * 30, 60);
+			for (int j = 0; j < 4; j++)
+			{
+				m_cameraMotor.SetYawDegree(60 - j * 30);
 				this_thread::sleep_for(chrono::milliseconds(500));
 				m_cameraSensor.GetFrame(img);
 				sprintf(buf, "./Output/AutoDrive/%d_2_%d.png", i, j);

@@ -69,26 +69,17 @@ namespace Protocol
 	class PWMMotor : public I2C
 	{
 	private:
-		ushort m_minValue = 0;
-		ushort m_maxValue = 1;
 		ushort m_curValue = 0;
-		float m_throttle = 0.0f;
 
 	public:
 		bool Init(int channel);
-		bool SetMinMax(ushort min, ushort max);
 		bool SetValue(ushort value);
-		bool SetThrottle(float throttle);
-		ushort GetMinValue();
-		ushort GetMaxValue();
-		ushort GetCurrnetValue();
-		float GetThrottle();
+		ushort GetValue();
 	};
 
 	class ServoMotor : public I2C
 	{
 	private:
-		const std::chrono::milliseconds DALTA_DUATION = std::chrono::milliseconds(10);
 		float m_defaultDegree = 0.0f;
 		float m_curDegree = 0.0f;
 
@@ -96,8 +87,7 @@ namespace Protocol
 
 	public:
 		bool Init(int channel, float defaultDegree, bool isSetZero = true);
-		bool SetDegreeWithTime(float degree, int millisecond = 0);
-		bool SetDegreeWithSpeed(float degree, float absDegreePerSecond = 0.0f);
+		bool SetDegree(float degree);
 		float GetDegree();
 	};
 
