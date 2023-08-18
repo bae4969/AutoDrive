@@ -10,6 +10,9 @@
 using namespace std;
 using namespace cv;
 
+#define DEGREE_TO_RADIAN(deg) deg * 0.0174532925199432957692369076849
+#define RADIAN_TO_DEGREE(rad) rad * 57.295779513082320876798154814105
+
 namespace PiCar
 {
 	bool PiCar::Init()
@@ -71,7 +74,8 @@ namespace PiCar
 		printf("Success to init PiCar\n");
 		return true;
 	}
-	void PiCar::Release(){
+	void PiCar::Release()
+	{
 		m_moveMotor.Release();
 		m_cameraMotor.Release();
 	}
@@ -80,10 +84,79 @@ namespace PiCar
 	{
 		bool isStop = false;
 		Camera::ImageInfo img;
+		Size printSize(640, 480);
+
+		Rect speedBGRect(10, 390, 30, 80);
+		Rect speedFGRect(10, 430, 30, 00);
+		Scalar speedBGColor(255, 255, 255);
+		Scalar speedPosColor(200, 0, 0);
+		Scalar speedNegColor(0, 0, 200);
+		Point steerArrowFrom(80, 460);
+		Point steerArrowVec(0, -50);
+
+		Point speedStrLoc(10, 20);
+		Point steerStrLoc(10, 40);
+		Point camYawStrLoc(10, 60);
+		Point camPitchStrLoc(10, 80);
+		Scalar textBC(0, 0, 0);
+		Scalar textFC(255, 255, 255);
 		while (!isStop)
 		{
 			if (m_cameraSensor.GetFrame(img))
-				imshow("TEST", img.Image);
+			{
+				Mat small;
+				resize(img.Image, small, printSize, 0.0, 0.0, INTER_NEAREST);
+
+				{
+					int speed = m_moveMotor.GetRearValue();
+					rectangle(small, speedBGRect, speedBGColor, FILLED);
+					if (speed >= 0)
+					{
+						speedFGRect.height = abs(speed * 0.02);
+						speedFGRect.y = 430 - speedFGRect.height;
+						rectangle(small, speedFGRect, speedPosColor, FILLED);
+					}
+					else
+					{
+						speedFGRect.y = 430;
+						speedFGRect.height = abs(speed * 0.02);
+						rectangle(small, speedFGRect, speedNegColor, FILLED);
+					}
+					string speedStr = format("Speed : %d", speed);
+					cv::putText(small, speedStr, speedStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, textBC, 5);
+					cv::putText(small, speedStr, speedStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, textFC, 2);
+				}
+				{
+					float steerDegree = m_moveMotor.GetSteerDegree();
+					double t_sin = sin(DEGREE_TO_RADIAN(steerDegree));
+					double t_cos = cos(DEGREE_TO_RADIAN(steerDegree));
+
+					Point newRotVec;
+					newRotVec.x = steerArrowVec.x * t_cos - steerArrowVec.y * t_sin;
+					newRotVec.y = steerArrowVec.x * t_sin + steerArrowVec.y * t_cos;
+					Point steerArrowTo = steerArrowFrom + newRotVec;
+
+					arrowedLine(small, steerArrowFrom, steerArrowTo, textBC, 10);
+					arrowedLine(small, steerArrowFrom, steerArrowTo, textFC, 6);
+
+					string steerStr = format("Steer : %.01f", steerDegree);
+					cv::putText(small, steerStr, steerStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, textBC, 5);
+					cv::putText(small, steerStr, steerStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, textFC, 2);
+				}
+
+				{
+					string camYawStr = format("Yaw : %.01f", m_cameraMotor.GetYawDegree());
+					cv::putText(small, camYawStr, camYawStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, textBC, 5);
+					cv::putText(small, camYawStr, camYawStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, textFC, 2);
+				}
+				{
+					string camPitchStr = format("Pitch : %.01f", m_cameraMotor.GetPitchDegree());
+					cv::putText(small, camPitchStr, camPitchStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, textBC, 5);
+					cv::putText(small, camPitchStr, camPitchStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, textFC, 2);
+				}
+
+				imshow("TEST", small);
+			}
 
 			int temp_i;
 			float temp_f;

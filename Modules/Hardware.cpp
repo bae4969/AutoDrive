@@ -148,7 +148,10 @@ namespace Hardware
 
 	bool MoveMotor::StopRearNow()
 	{
-		return UpdateRearValue(0);
+		m_updateMutex.lock();
+		m_targetRearValue = 0;
+		m_updateMutex.unlock();
+		return UpdateRearValue(m_targetRearValue);
 	}
 	void MoveMotor::SetRearSpeed(int valuePerSecond)
 	{
