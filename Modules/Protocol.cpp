@@ -40,6 +40,13 @@ namespace Protocol
 		}
 		catch (...)
 		{
+			GPIO rstMCU;
+			rstMCU.Init(GPIO_PIN_MCU_RESET, true);
+			rstMCU.SetOutput(false);
+			this_thread::sleep_for(chrono::milliseconds(100));
+			rstMCU.SetOutput(true);
+			this_thread::sleep_for(chrono::milliseconds(300));
+
 			I2C_FD = wiringPiI2CSetupInterface("/dev/i2c-1", 0x15);
 			I2C_FD = wiringPiI2CSetupInterface("/dev/i2c-1", I2C_ADDRESS);
 			if (wiringPiI2CWrite(I2C_FD, 0x2C) < 0)
@@ -102,7 +109,8 @@ namespace Protocol
 
 		return true;
 	}
-	int GPIO::GetOutput(){
+	int GPIO::GetOutput()
+	{
 		if (!m_isOut)
 		{
 			printf("This GPIO %d is not out mode\n", m_pinIdx);
@@ -129,6 +137,13 @@ namespace Protocol
 		return m_isHigh;
 	}
 
+	I2C::I2C()
+	{
+		m_pulseWidth = 0;
+		m_frequency = 50;
+		m_prescaler = 10;
+		m_period = 4095;
+	}
 	ushort I2C::ConvertBig2Little(ushort val)
 	{
 		ushort val_h = val >> 8;
@@ -165,7 +180,8 @@ namespace Protocol
 
 		int reg = PULSE_WIDTH_REG_OFFSET + m_channel;
 		int ret = wiringPiI2CWriteReg16(I2C_FD, reg, ConvertBig2Little(value));
-		if (ret < 0){
+		if (ret < 0)
+		{
 			printf("Fail to write I2C %d pulse width\n", reg);
 			return false;
 		}
@@ -230,7 +246,8 @@ namespace Protocol
 
 		int reg = PRESCALER_REG_OFFSET + m_group;
 		int ret = wiringPiI2CWriteReg16(I2C_FD, reg, ConvertBig2Little(value));
-		if (ret < 0){
+		if (ret < 0)
+		{
 			printf("Fail to write I2C %d prescaler\n", reg);
 			return false;
 		}
@@ -248,7 +265,8 @@ namespace Protocol
 
 		int reg = PERIOD_REG_OFFSET + m_group;
 		int ret = wiringPiI2CWriteReg16(I2C_FD, reg, ConvertBig2Little(value));
-		if (ret < 0){
+		if (ret < 0)
+		{
 			printf("Fail to write I2C %d period\n", reg);
 			return false;
 		}
@@ -273,11 +291,14 @@ namespace Protocol
 		return m_period;
 	}
 
+	PWMMotor::PWMMotor()
+	{
+		m_curValue = 0;
+	}
 	bool PWMMotor::Init(int channel)
 	{
-		return 
-		I2C::Init(channel, 9, 4095)&&
-		SetPulseWidth(0);
+		return I2C::Init(channel, 9, 4095) &&
+			   SetPulseWidth(0);
 	}
 	bool PWMMotor::SetValue(ushort value)
 	{
@@ -292,6 +313,11 @@ namespace Protocol
 		return m_curValue;
 	}
 
+	ServoMotor::ServoMotor()
+	{
+		m_defaultDegree = 0.0f;
+		m_curDegree = 0.0f;
+	}
 	ushort ServoMotor::ConvertDegreeToPulseWidth(float degree)
 	{
 		degree += m_defaultDegree;

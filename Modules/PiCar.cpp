@@ -55,14 +55,9 @@ namespace PiCar
 			printf("Fail to init camera motor module\n");
 			return false;
 		}
-		if (!m_sonicSensor.Init())
+		if (!m_sensors.Init())
 		{
-			printf("Fail to init sonic sensor module\n");
-			return false;
-		}
-		if (!m_floorSensor.Init())
-		{
-			printf("Fail to init floor sensor module\n");
+			printf("Fail to init sensors\n");
 			return false;
 		}
 		if (!m_cameraSensor.Init())
@@ -77,6 +72,7 @@ namespace PiCar
 	void PiCar::Release()
 	{
 		m_moveMotor.Release();
+		m_sensors.Release();
 		m_cameraMotor.Release();
 	}
 
@@ -85,6 +81,9 @@ namespace PiCar
 		bool isStop = false;
 		Camera::ImageInfo img;
 		Size printSize(640, 480);
+
+		Scalar textBC(0, 0, 0);
+		Scalar textFC(255, 255, 255);
 
 		Rect speedBGRect(10, 390, 30, 80);
 		Rect speedFGRect(10, 430, 30, 00);
@@ -98,8 +97,9 @@ namespace PiCar
 		Point steerStrLoc(10, 40);
 		Point camYawStrLoc(10, 60);
 		Point camPitchStrLoc(10, 80);
-		Scalar textBC(0, 0, 0);
-		Scalar textFC(255, 255, 255);
+
+		Point distanceStrLoc(200, 450);
+
 		while (!isStop)
 		{
 			if (m_cameraSensor.GetFrame(img))
@@ -107,8 +107,13 @@ namespace PiCar
 				Mat small;
 				resize(img.Image, small, printSize, 0.0, 0.0, INTER_NEAREST);
 
+				int speed = m_moveMotor.GetRearValue();
+				float steerDegree = m_moveMotor.GetSteerDegree();
+				float yawDegree = m_cameraMotor.GetYawDegree();
+				float pitchDegree = m_cameraMotor.GetPitchDegree();
+				double distance = m_sensors.GetSonicSensorValue();
+				
 				{
-					int speed = m_moveMotor.GetRearValue();
 					rectangle(small, speedBGRect, speedBGColor, FILLED);
 					if (speed >= 0)
 					{
@@ -127,7 +132,6 @@ namespace PiCar
 					cv::putText(small, speedStr, speedStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, textFC, 2);
 				}
 				{
-					float steerDegree = m_moveMotor.GetSteerDegree();
 					double t_sin = sin(DEGREE_TO_RADIAN(steerDegree));
 					double t_cos = cos(DEGREE_TO_RADIAN(steerDegree));
 
@@ -143,16 +147,20 @@ namespace PiCar
 					cv::putText(small, steerStr, steerStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, textBC, 5);
 					cv::putText(small, steerStr, steerStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, textFC, 2);
 				}
-
 				{
-					string camYawStr = format("Yaw : %.01f", m_cameraMotor.GetYawDegree());
+					string camYawStr = format("Yaw : %.01f", yawDegree);
 					cv::putText(small, camYawStr, camYawStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, textBC, 5);
 					cv::putText(small, camYawStr, camYawStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, textFC, 2);
 				}
 				{
-					string camPitchStr = format("Pitch : %.01f", m_cameraMotor.GetPitchDegree());
+					string camPitchStr = format("Pitch : %.01f", pitchDegree);
 					cv::putText(small, camPitchStr, camPitchStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, textBC, 5);
 					cv::putText(small, camPitchStr, camPitchStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, textFC, 2);
+				}
+				{
+					string distanceStr = format("%05.02fcm", distance * 0.1);
+					cv::putText(small, distanceStr, distanceStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, textBC, 5);
+					cv::putText(small, distanceStr, distanceStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, textFC, 2);
 				}
 
 				imshow("TEST", small);
@@ -239,20 +247,6 @@ namespace PiCar
 		}
 
 		return;
-	}
-
-	void PiCar::TestSimpleSensor()
-	{
-		double value;
-		ushort t[3];
-		while (true)
-		{
-			m_sonicSensor.GetValue(value);
-			m_floorSensor.GetValues(t[0], t[1], t[2]);
-			printf("Current distance : %.04fmm\n", value);
-			printf("Floor value : %d, %d, %d\n", t[0], t[1], t[2]);
-			this_thread::sleep_for(chrono::seconds(1));
-		}
 	}
 	void PiCar::TestCameraSensor()
 	{

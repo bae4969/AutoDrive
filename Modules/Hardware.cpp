@@ -68,16 +68,16 @@ namespace Hardware
 		bool isForward = value >= 0;
 		ushort absValue = abs(value);
 
-		m_rearMutex.lock();
+		m_rearSyncMutex.lock();
 		bool isGood =
 			m_leftDir.SetOutput(!isForward) &&
 			m_rightDir.SetOutput(isForward) &&
 			m_leftMotor.SetValue(absValue) &&
 			m_rightMotor.SetValue(absValue);
-		m_rearMutex.unlock();
+		m_rearSyncMutex.unlock();
 
 		if (!isGood)
-			printf("Fail to set rear value");
+			printf("Fail to set rear value\n");
 
 		return isGood;
 	}
@@ -348,22 +348,38 @@ namespace Hardware
 		return -m_yawMotor.GetDegree();
 	}
 
-	bool SonicSensor::Init()
+	bool Sensors::Init()
 	{
-		if (!m_tring.Init(Protocol::GPIO_PIN_SONIC_TRING, true))
+		if (!m_tring.Init(Protocol::GPIO_PIN_SONIC_TRING, true) ||
+			!m_echo.Init(Protocol::GPIO_PIN_SONIC_ECHO, false))
 		{
-			printf("Fail to init sonic tring GPIO\n");
+			printf("Fail to init sonic sensor GPIO\n");
 			return false;
 		}
-		if (!m_echo.Init(Protocol::GPIO_PIN_SONIC_ECHO, false))
+		if (!m_left.Init(0) ||
+			!m_center.Init(1) ||
+			!m_right.Init(2))
 		{
-			printf("Fail to init sonic echo GPIO\n");
+			printf("Fail to init floor sensor\n");
 			return false;
 		}
 
+		m_isStop = false;
+		m_sonicDistance = -1.0;
+		m_floorLeftValue = 0;
+		m_floorCenterValue = 0;
+		m_floorRightValue = 0;
+		m_updateThread = thread(&Sensors::UpdateThreadFunc, this);
+
 		return true;
 	}
-	bool SonicSensor::GetValue(double &value)
+	void Sensors::Release()
+	{
+		m_isStop = true;
+		m_updateThread.join();
+	}
+
+	void Sensors::UpdateSonicSensor()
 	{
 		m_tring.SetOutput(false);
 		this_thread::sleep_for(chrono::milliseconds(10));
@@ -377,45 +393,53 @@ namespace Hardware
 		{
 			pulseStart = chrono::system_clock::now();
 			if (pulseStart - timeoutStart > TIMEOUT)
-				return false;
+				return;
 		}
 		while (m_echo.GetInput() == 1)
 		{
 			pulseEnd = chrono::system_clock::now();
 			if (pulseEnd - timeoutStart > TIMEOUT)
-				return false;
+				return;
 		}
 		auto duration = (pulseEnd - pulseStart);
-		value = duration.count() * 0.00016575; // mm
-		return true;
+		m_sonicDistance = duration.count() * 0.00016575; // mm
 	}
-
-	bool FloorSensor::Init()
-	{
-		if (!m_left.Init(0) ||
-			!m_center.Init(1) ||
-			!m_right.Init(2))
-		{
-			printf("Fail to init floor sensor\n");
-			return false;
-		}
-
-		return true;
-	}
-	bool FloorSensor::GetValues(ushort &left, ushort &center, ushort &right)
+	void Sensors::UpdateFloorSensor()
 	{
 		int t_v1 = m_left.GetValue();
 		int t_v2 = m_center.GetValue();
 		int t_v3 = m_right.GetValue();
 		if (t_v1 < 0 || t_v2 < 0 || t_v3 < 0)
-		{
-			printf("Fail to get floor sensor value\n");
-			return false;
-		}
+			return;
 
-		left = t_v1;
-		center = t_v2;
-		right = t_v3;
-		return true;
+		m_floorLeftValue = t_v1;
+		m_floorCenterValue = t_v2;
+		m_floorRightValue = t_v3;
+	}
+	void Sensors::UpdateThreadFunc()
+	{
+		while (!m_isStop)
+		{
+			UpdateSonicSensor();
+			// UpdateFloorSensor();
+			this_thread::sleep_for(UPDATE_PERIOD);
+		}
+	}
+
+	double Sensors::GetSonicSensorValue()
+	{
+		return m_sonicDistance;
+	}
+	ushort Sensors::GetFloorLeftValue()
+	{
+		return m_floorLeftValue;
+	}
+	ushort Sensors::GetFloorCenterValue()
+	{
+		return m_floorCenterValue;
+	}
+	ushort Sensors::GetFloorRightValue()
+	{
+		return m_floorRightValue;
 	}
 }
