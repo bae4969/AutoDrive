@@ -87,13 +87,13 @@ namespace Hardware
 		Protocol::ADC m_center;
 		Protocol::ADC m_right;
 
-		const std::chrono::milliseconds UPDATE_PERIOD = std::chrono::milliseconds(1000);
+		const std::chrono::milliseconds UPDATE_PERIOD = std::chrono::milliseconds(100);
 		const std::chrono::milliseconds TIMEOUT = std::chrono::milliseconds(10);
 		std::atomic<bool> m_isStop;
 		std::atomic<double> m_sonicDistance; // mm
-		std::atomic<ushort> m_floorLeftValue;
-		std::atomic<ushort> m_floorCenterValue;
-		std::atomic<ushort> m_floorRightValue;
+		std::atomic<double> m_floorLeftValue;
+		std::atomic<double> m_floorCenterValue;
+		std::atomic<double> m_floorRightValue;
 		std::thread m_updateThread;
 
 		void UpdateSonicSensor();
@@ -104,8 +104,8 @@ namespace Hardware
 		bool Init();
 		void Release();
 		double GetSonicSensorValue();
-		ushort GetFloorLeftValue();
-		ushort GetFloorCenterValue();
-		ushort GetFloorRightValue();
+		double GetFloorLeftValue();
+		double GetFloorCenterValue();
+		double GetFloorRightValue();
 	};
 }

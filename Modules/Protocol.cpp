@@ -5,6 +5,7 @@
 #include <vector>
 #include <math.h>
 #include <thread>
+#include <mutex>
 
 using namespace std;
 
@@ -13,6 +14,7 @@ namespace Protocol
 	static bool IsSetGPIO = false;
 	static int I2C_FD = -1;
 	const int I2C_ADDRESS = 0x14;
+	static mutex i2cWriteMutex;
 
 	bool InitProtocol()
 	{
@@ -23,6 +25,13 @@ namespace Protocol
 			return false;
 		}
 
+		GPIO rstMCU;
+		rstMCU.Init(GPIO_PIN_MCU_RESET, true);
+		rstMCU.SetOutput(false);
+		this_thread::sleep_for(chrono::milliseconds(100));
+		rstMCU.SetOutput(true);
+		this_thread::sleep_for(chrono::milliseconds(300));
+
 		I2C_FD = wiringPiI2CSetupInterface("/dev/i2c-1", I2C_ADDRESS);
 		if (I2C_FD < 0)
 		{
@@ -30,30 +39,10 @@ namespace Protocol
 			return false;
 		}
 
-		try
+		if (wiringPiI2CWrite(I2C_FD, 0x2C) < 0)
 		{
-			if (wiringPiI2CWrite(I2C_FD, 0x2C) < 0)
-			{
-				printf("Fail to init I2C at once, so retry init\n");
-				throw std::exception();
-			}
-		}
-		catch (...)
-		{
-			GPIO rstMCU;
-			rstMCU.Init(GPIO_PIN_MCU_RESET, true);
-			rstMCU.SetOutput(false);
-			this_thread::sleep_for(chrono::milliseconds(100));
-			rstMCU.SetOutput(true);
-			this_thread::sleep_for(chrono::milliseconds(300));
-
-			I2C_FD = wiringPiI2CSetupInterface("/dev/i2c-1", 0x15);
-			I2C_FD = wiringPiI2CSetupInterface("/dev/i2c-1", I2C_ADDRESS);
-			if (wiringPiI2CWrite(I2C_FD, 0x2C) < 0)
-			{
-				printf("Fail to init I2C again\n");
-				return false;
-			}
+			printf("Fail to init I2C again\n");
+			return false;
 		}
 
 		return true;
@@ -179,7 +168,9 @@ namespace Protocol
 		}
 
 		int reg = PULSE_WIDTH_REG_OFFSET + m_channel;
+		i2cWriteMutex.lock();
 		int ret = wiringPiI2CWriteReg16(I2C_FD, reg, ConvertBig2Little(value));
+		i2cWriteMutex.unlock();
 		if (ret < 0)
 		{
 			printf("Fail to write I2C %d pulse width\n", reg);
@@ -245,7 +236,9 @@ namespace Protocol
 		}
 
 		int reg = PRESCALER_REG_OFFSET + m_group;
+		i2cWriteMutex.lock();
 		int ret = wiringPiI2CWriteReg16(I2C_FD, reg, ConvertBig2Little(value));
+		i2cWriteMutex.unlock();
 		if (ret < 0)
 		{
 			printf("Fail to write I2C %d prescaler\n", reg);
@@ -264,7 +257,9 @@ namespace Protocol
 		}
 
 		int reg = PERIOD_REG_OFFSET + m_group;
+		i2cWriteMutex.lock();
 		int ret = wiringPiI2CWriteReg16(I2C_FD, reg, ConvertBig2Little(value));
+		i2cWriteMutex.unlock();
 		if (ret < 0)
 		{
 			printf("Fail to write I2C %d period\n", reg);
@@ -383,18 +378,14 @@ namespace Protocol
 			return -1;
 		}
 
+		i2cWriteMutex.lock();
 		int ret = wiringPiI2CWriteReg16(I2C_FD, m_channel, 0);
-		if (ret < 0)
-			return -1;
-
 		int first = wiringPiI2CRead(I2C_FD);
-		if (first < 0)
-			return -1;
-
 		int second = wiringPiI2CRead(I2C_FD);
-		if (second < 0)
-			return -1;
+		i2cWriteMutex.unlock();
 
-		return (first << 8) + second;
+		bool isGood = ret >= 0 || first >= 0 || second >= 0;
+
+		return isGood ? (first << 8) + second : -1;
 	}
 }

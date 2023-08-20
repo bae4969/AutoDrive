@@ -421,7 +421,7 @@ namespace Hardware
 		while (!m_isStop)
 		{
 			UpdateSonicSensor();
-			// UpdateFloorSensor();
+			UpdateFloorSensor();
 			this_thread::sleep_for(UPDATE_PERIOD);
 		}
 	}
@@ -430,15 +430,15 @@ namespace Hardware
 	{
 		return m_sonicDistance;
 	}
-	ushort Sensors::GetFloorLeftValue()
+	double Sensors::GetFloorLeftValue()
 	{
 		return m_floorLeftValue;
 	}
-	ushort Sensors::GetFloorCenterValue()
+	double Sensors::GetFloorCenterValue()
 	{
 		return m_floorCenterValue;
 	}
-	ushort Sensors::GetFloorRightValue()
+	double Sensors::GetFloorRightValue()
 	{
 		return m_floorRightValue;
 	}

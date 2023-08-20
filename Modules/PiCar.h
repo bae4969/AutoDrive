@@ -1,5 +1,8 @@
 #pragma once
 #include "Hardware.h"
+#include <opencv2/opencv.hpp>
+#include <atomic>
+#include <mutex>
 
 namespace PiCar
 {
@@ -10,6 +13,13 @@ namespace PiCar
 		Hardware::CameraMotor m_cameraMotor;
 		Hardware::CameraSensor m_cameraSensor;
 		Hardware::Sensors m_sensors;
+
+		std::atomic<bool> m_isStop;
+		cv::Mat imgBuffer;
+std::mutex imgBufferMutex;
+
+		bool UpdateCameraImage();
+		void ExecuteKeyInput(char ch);
 
 	public:
 		bool Init();
