@@ -9,6 +9,7 @@ namespace PiCar
 	class PiCar
 	{
 	private:
+		Protocol::PubSubServer m_pubSub;
 		Hardware::MoveMotor m_moveMotor;
 		Hardware::CameraMotor m_cameraMotor;
 		Hardware::CameraSensor m_cameraSensor;
@@ -16,7 +17,8 @@ namespace PiCar
 
 		std::atomic<bool> m_isStop;
 		cv::Mat imgBuffer;
-std::mutex imgBufferMutex;
+		std::mutex imgBufferMutex;
+
 
 		bool UpdateCameraImage();
 		void ExecuteKeyInput(char ch);
@@ -24,8 +26,9 @@ std::mutex imgBufferMutex;
 	public:
 		bool Init();
 		void Release();
-		
-		void Run();
+
+		void RemoteRun();
+		void DirectRun();
 
 		void TestCameraSensor();
 	};

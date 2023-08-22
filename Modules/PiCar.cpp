@@ -21,6 +21,12 @@ namespace PiCar
 		float defaultSteerAngle = 0.0f;
 		float defaultPitchAngle = 0.0f;
 		float defaultYawAngle = 0.0f;
+		vector<string> xPubConnStrs;
+		vector<string> xSubConnStrs;
+		xPubConnStrs.push_back(PROXY_XPUB_STR);
+		xPubConnStrs.push_back("tcp://*:45000");
+		xSubConnStrs.push_back(PROXY_XSUB_STR);
+		xSubConnStrs.push_back("tcp://*:45001");
 		FILE *file_r = fopen("CailData.data", "r");
 		if (file_r)
 		{
@@ -64,6 +70,11 @@ namespace PiCar
 		if (!m_cameraSensor.Init())
 		{
 			printf("Fail to init camera sensor module\n");
+			return false;
+		}
+		if (!m_pubSub.Init(xPubConnStrs, xSubConnStrs))
+		{
+			printf("Fail to init proxy server\n");
 			return false;
 		}
 
@@ -192,7 +203,7 @@ namespace PiCar
 			if (multiRightFloorVal > 1.0)
 				multiRightFloorVal = 1.0;
 
-			Scalar leftColor(255 * multiLeftFloorVal, 255* multiLeftFloorVal, 255);
+			Scalar leftColor(255 * multiLeftFloorVal, 255 * multiLeftFloorVal, 255);
 			Scalar centerColor(255 * multiCenterFloorVal, 255 * multiLeftFloorVal, 255);
 			Scalar rightColor(255 * multiRightFloorVal, 255 * multiLeftFloorVal, 255);
 
@@ -288,7 +299,23 @@ namespace PiCar
 		}
 	}
 
-	void PiCar::Run()
+	void PiCar::RemoteRun()
+	{
+		m_isStop = false;
+
+		while (!m_isStop)
+		{
+			if (UpdateCameraImage())
+			{
+
+			}
+
+			ExecuteKeyInput(waitKey(100));
+		}
+
+		return;
+	}
+	void PiCar::DirectRun()
 	{
 		m_isStop = false;
 
@@ -311,6 +338,7 @@ namespace PiCar
 
 		return;
 	}
+
 	void PiCar::TestCameraSensor()
 	{
 		Camera::ImageInfo img;

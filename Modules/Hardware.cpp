@@ -1,11 +1,6 @@
 #include "Hardware.h"
-#include <zmq.hpp>
 #include <iostream>
 #include <math.h>
-#include <thread>
-#include <chrono>
-
-using namespace std;
 
 #define REAR_MIN_VALUE -2000
 #define REAR_MAX_VALUE 2000
@@ -15,6 +10,8 @@ using namespace std;
 #define CAMERA_PITCH_MAX_DEGREE 50
 #define CAMERA_YAW_MIN_DEGREE -60
 #define CAMERA_YAW_MAX_DEGREE 60
+
+using namespace std;
 
 namespace Hardware
 {
@@ -53,12 +50,24 @@ namespace Hardware
 		SetSteerDegree(0.0f);
 		m_updateThread = thread(&MoveMotor::UpdateThreadFunc, this);
 
+		if (!m_pubSub.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
+		{
+			printf("Fail to init ZMQ for move motor\n");
+			return false;
+		}
+		m_pubSub.AddSubTopic("COMMAND_MOVE_MOTOR");
+		m_pubSub.ChangePubTopic("STATE_MOVE_MOTOR");
+		m_subThread = thread(&MoveMotor::SubThreadFunc, this);
+		m_pubThread = thread(&MoveMotor::PubThreadFunc, this);
+
 		return true;
 	}
 	void MoveMotor::Release()
 	{
 		m_isStop = true;
 		m_updateThread.join();
+		m_subThread.join();
+		m_pubThread.join();
 		UpdateRearValue(0);
 		UpdateSteerDegree(0.0f);
 	}
@@ -145,6 +154,71 @@ namespace Hardware
 			this_thread::sleep_for(DALTA_DUATION);
 		}
 	}
+	void MoveMotor::SubThreadFunc()
+	{
+		while (!m_isStop)
+		{
+			zmq::multipart_t msg;
+			if (m_pubSub.SubscribeMessage(msg) && msg.size() >= 4)
+			{
+				try
+				{
+					string topic = msg.popstr();
+					string cmd = msg.popstr();
+					string type = msg.popstr();
+					float val = msg.poptyp<float>();
+
+					if (cmd == "REAR_MOTOR")
+					{
+						if (type == "VALUE")
+							SetRearValue(val);
+						else if (type == "SPEED")
+							SetRearSpeed(val);
+						else if (type == "STOP")
+							StopRearNow();
+					}
+					else if (cmd == "STEER_MOTOR")
+					{
+						if (type == "VALUE")
+							SetSteerDegree(val);
+						else if (type == "SPEED")
+							SetSteerSpeed(val);
+					}
+				}
+				catch (...)
+				{
+					printf("Invalid massage was detected in MoveMotor\n");
+				}
+			}
+
+			this_thread::sleep_for(DALTA_DUATION);
+		}
+	}
+	void MoveMotor::PubThreadFunc()
+	{
+		while (!m_isStop)
+		{
+			m_updateMutex.lock();
+			float curRearValue = GetRearValue();
+			float tarRearValue = m_targetRearValue;
+			float delDiffRearValue = m_deltaRearValue;
+			float curSteerDegree = GetSteerDegree();
+			float tarSteerDegree = m_targetSteerDegree;
+			float delDiffSteerDegree = m_deltaSteerDegree;
+			m_updateMutex.unlock();
+
+			zmq::multipart_t pubMsg;
+			pubMsg.addtyp(curRearValue);
+			pubMsg.addtyp(tarRearValue);
+			pubMsg.addtyp(delDiffRearValue);
+			pubMsg.addtyp(curSteerDegree);
+			pubMsg.addtyp(tarSteerDegree);
+			pubMsg.addtyp(delDiffSteerDegree);
+			m_pubSub.PublishMessage(pubMsg);
+
+			this_thread::sleep_for(DALTA_DUATION);
+		}
+	}
 
 	bool MoveMotor::StopRearNow()
 	{
@@ -152,12 +226,6 @@ namespace Hardware
 		m_targetRearValue = 0;
 		m_updateMutex.unlock();
 		return UpdateRearValue(m_targetRearValue);
-	}
-	void MoveMotor::SetRearSpeed(int valuePerSecond)
-	{
-		m_updateMutex.lock();
-		m_deltaRearValue = abs(round(valuePerSecond * 0.01));
-		m_updateMutex.unlock();
 	}
 	void MoveMotor::SetRearValue(int value)
 	{
@@ -170,6 +238,12 @@ namespace Hardware
 		m_targetRearValue = value;
 		m_updateMutex.unlock();
 	}
+	void MoveMotor::SetRearSpeed(int valuePerSecond)
+	{
+		m_updateMutex.lock();
+		m_deltaRearValue = abs(round(valuePerSecond * DALTA_DUATION.count() / 1000.0));
+		m_updateMutex.unlock();
+	}
 	int MoveMotor::GetRearValue()
 	{
 		int value = m_leftMotor.GetValue();
@@ -178,12 +252,6 @@ namespace Hardware
 		return value;
 	}
 
-	void MoveMotor::SetSteerSpeed(float degreePerSecond)
-	{
-		m_updateMutex.lock();
-		m_deltaSteerDegree = abs(degreePerSecond * 0.01f);
-		m_updateMutex.unlock();
-	}
 	void MoveMotor::SetSteerDegree(float degree)
 	{
 		if (degree > STEER_MAX_DEGREE)
@@ -193,6 +261,12 @@ namespace Hardware
 
 		m_updateMutex.lock();
 		m_targetSteerDegree = degree;
+		m_updateMutex.unlock();
+	}
+	void MoveMotor::SetSteerSpeed(float degreePerSecond)
+	{
+		m_updateMutex.lock();
+		m_deltaSteerDegree = abs(degreePerSecond * DALTA_DUATION.count() / 1000.0f);
 		m_updateMutex.unlock();
 	}
 	float MoveMotor::GetSteerDegree()
@@ -220,12 +294,24 @@ namespace Hardware
 		SetYawDegree(0.0f);
 		m_updateThread = thread(&CameraMotor::UpdateThreadFunc, this);
 
+		if (!m_pubSub.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
+		{
+			printf("Fail to init ZMQ for camera motor\n");
+			return false;
+		}
+		m_pubSub.AddSubTopic("COMMAND_CAMERA_MOTOR");
+		m_pubSub.ChangePubTopic("STATE_CAMERA_MOTOR");
+		m_subThread = thread(&CameraMotor::SubThreadFunc, this);
+		m_pubThread = thread(&CameraMotor::PubThreadFunc, this);
+
 		return true;
 	}
 	void CameraMotor::Release()
 	{
 		m_isStop = true;
 		m_updateThread.join();
+		m_subThread.join();
+		m_pubThread.join();
 		UpdatePitchDegree(0.0f);
 		UpdateYawDegree(0.0f);
 	}
@@ -289,6 +375,7 @@ namespace Hardware
 			absDiffYawDegree = abs(tarYawDegree - curYawDegree);
 			if (absDiffYawDegree >= FLT_EPSILON)
 			{
+
 				if (absDiffYawDegree > delDiffYawDegree)
 					absDiffYawDegree = delDiffYawDegree;
 
@@ -303,13 +390,70 @@ namespace Hardware
 			this_thread::sleep_for(DALTA_DUATION);
 		}
 	}
-
-	void CameraMotor::SetPitchSpeed(float degreePerSecond)
+	void CameraMotor::SubThreadFunc()
 	{
-		m_updateMutex.lock();
-		m_deltaPitchDegree = abs(degreePerSecond * 0.01f);
-		m_updateMutex.unlock();
+		while (!m_isStop)
+		{
+			zmq::multipart_t msg;
+			if (m_pubSub.SubscribeMessage(msg) && msg.size() >= 4)
+			{
+				try
+				{
+					string topic = msg.popstr();
+					string cmd = msg.popstr();
+					string type = msg.popstr();
+					float val = msg.poptyp<float>();
+
+					if (cmd == "PITCH_MOTOR")
+					{
+						if (type == "VALUE")
+							SetPitchDegree(val);
+						else if (type == "SPEED")
+							SetPitchSpeed(val);
+					}
+					else if (cmd == "YAW_MOTOR")
+					{
+						if (type == "VALUE")
+							SetYawDegree(val);
+						else if (type == "SPEED")
+							SetYawSpeed(val);
+					}
+				}
+				catch (...)
+				{
+					printf("Invalid massage was detected in PitchMotor\n");
+				}
+			}
+
+			this_thread::sleep_for(DALTA_DUATION);
+		}
 	}
+	void CameraMotor::PubThreadFunc()
+	{
+		while (!m_isStop)
+		{
+			m_updateMutex.lock();
+			float curPitchDegree = GetPitchDegree();
+			float tarPitchDegree = m_targetPitchDegree;
+			float delDiffPitchDegree = m_deltaPitchDegree;
+			float curYawDegree = GetYawDegree();
+			float tarYawDegree = m_targetYawDegree;
+			float delDiffYawDegree = m_deltaYawDegree;
+			m_updateMutex.unlock();
+
+			zmq::multipart_t pubMsg;
+			pubMsg.addtyp(curPitchDegree);
+			pubMsg.addtyp(tarPitchDegree);
+			pubMsg.addtyp(delDiffPitchDegree);
+			pubMsg.addtyp(curYawDegree);
+			pubMsg.addtyp(tarYawDegree);
+			pubMsg.addtyp(delDiffYawDegree);
+			m_pubSub.PublishMessage(pubMsg);
+
+			this_thread::sleep_for(DALTA_DUATION);
+		}
+	}
+
 	void CameraMotor::SetPitchDegree(float degree)
 	{
 		if (degree > CAMERA_PITCH_MAX_DEGREE)
@@ -321,17 +465,17 @@ namespace Hardware
 		m_targetPitchDegree = degree;
 		m_updateMutex.unlock();
 	}
+	void CameraMotor::SetPitchSpeed(float degreePerSecond)
+	{
+		m_updateMutex.lock();
+		m_deltaPitchDegree = abs(degreePerSecond * DALTA_DUATION.count() / 1000.0f);
+		m_updateMutex.unlock();
+	}
 	float CameraMotor::GetPitchDegree()
 	{
 		return -m_pitchMotor.GetDegree();
 	}
 
-	void CameraMotor::SetYawSpeed(float degreePerSecond)
-	{
-		m_updateMutex.lock();
-		m_deltaYawDegree = abs(degreePerSecond * 0.01f);
-		m_updateMutex.unlock();
-	}
 	void CameraMotor::SetYawDegree(float degree)
 	{
 		if (degree > CAMERA_YAW_MAX_DEGREE)
@@ -341,6 +485,12 @@ namespace Hardware
 
 		m_updateMutex.lock();
 		m_targetYawDegree = degree;
+		m_updateMutex.unlock();
+	}
+	void CameraMotor::SetYawSpeed(float degreePerSecond)
+	{
+		m_updateMutex.lock();
+		m_deltaYawDegree = abs(degreePerSecond * DALTA_DUATION.count() / 1000.0f);
 		m_updateMutex.unlock();
 	}
 	float CameraMotor::GetYawDegree()
@@ -371,6 +521,14 @@ namespace Hardware
 		m_floorRightValue = 0;
 		m_updateThread = thread(&Sensors::UpdateThreadFunc, this);
 
+		if (!m_pubSub.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
+		{
+			printf("Fail to init ZMQ for sensor\n");
+			return false;
+		}
+		m_pubSub.ChangePubTopic("STATE_SENSOR");
+		m_pubThread = thread(&Sensors::PubThreadFunc, this);
+
 		return true;
 	}
 	void Sensors::Release()
@@ -382,9 +540,9 @@ namespace Hardware
 	void Sensors::UpdateSonicSensor()
 	{
 		m_tring.SetOutput(false);
-		this_thread::sleep_for(chrono::milliseconds(10));
+		this_thread::sleep_for(chrono::microseconds(2));
 		m_tring.SetOutput(true);
-		this_thread::sleep_for(chrono::nanoseconds(10));
+		this_thread::sleep_for(chrono::microseconds(10));
 		m_tring.SetOutput(false);
 		auto timeoutStart = chrono::system_clock::now();
 		auto pulseStart = timeoutStart;
@@ -412,9 +570,11 @@ namespace Hardware
 		if (t_v1 < 0 || t_v2 < 0 || t_v3 < 0)
 			return;
 
+		m_floorSyncMutex.lock();
 		m_floorLeftValue = t_v1;
 		m_floorCenterValue = t_v2;
 		m_floorRightValue = t_v3;
+		m_floorSyncMutex.unlock();
 	}
 	void Sensors::UpdateThreadFunc()
 	{
@@ -423,6 +583,27 @@ namespace Hardware
 			UpdateSonicSensor();
 			UpdateFloorSensor();
 			this_thread::sleep_for(UPDATE_PERIOD);
+		}
+	}
+	void Sensors::PubThreadFunc()
+	{
+		while (!m_isStop)
+		{
+			m_floorSyncMutex.lock();
+			float sonicValue = m_sonicDistance;
+			float floorLeftValue = m_floorLeftValue;
+			float floorCenterValue = m_floorCenterValue;
+			float floorRightValue = m_floorRightValue;
+			m_floorSyncMutex.unlock();
+
+			zmq::multipart_t pubMsg;
+			pubMsg.addtyp(sonicValue);
+			pubMsg.addtyp(floorLeftValue);
+			pubMsg.addtyp(floorCenterValue);
+			pubMsg.addtyp(floorRightValue);
+			m_pubSub.PublishMessage(pubMsg);
+
+			this_thread::sleep_for(DALTA_DUATION);
 		}
 	}
 

@@ -8,7 +8,7 @@ int main()
     if (!car.Init())
         return -1;
 
-    car.Run();
+    car.RemoteRun();
     car.Release();
 
     return 0;

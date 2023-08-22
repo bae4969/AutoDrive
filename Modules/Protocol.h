@@ -1,6 +1,10 @@
 #pragma once
+#include <zmq.hpp>
+#include <zmq_addon.hpp>
 #include <chrono>
 #include <atomic>
+#include <thread>
+#include <boost/shared_ptr.hpp>
 
 namespace Protocol
 {
@@ -107,4 +111,34 @@ namespace Protocol
 		bool Init(int channel);
 		int GetValue();
 	};
+
+	class PubSubClient
+	{
+		std::shared_ptr<zmq::context_t> m_zmqContext;
+		std::shared_ptr<zmq::socket_t> m_subSocket;
+		std::shared_ptr<zmq::socket_t> m_pubSocket;
+		std::string m_pubTopic;
+
+	public:
+		bool Init(std::string pubConnStr, std::string subConnStr);
+		~PubSubClient();
+
+		void ChangePubTopic(std::string topic);
+		void PublishMessage(zmq::multipart_t &msg);
+		void AddSubTopic(std::string topic);
+		void RemoveSubTopic(std::string topic);
+		bool SubscribeMessage(zmq::multipart_t& msg);
+	};
+	class PubSubServer
+	{
+		std::thread m_subThread;
+		std::shared_ptr<zmq::context_t> m_zmqContext;
+		std::shared_ptr<zmq::socket_t> m_xSubSocket;
+		std::shared_ptr<zmq::socket_t> m_xPubSocket;
+
+	public:
+		bool Init(std::vector<std::string> xPubConnStrs, std::vector<std::string> xSubConnStrs);
+		~PubSubServer();
+	};
+
 }
