@@ -166,10 +166,10 @@ namespace Hardware
 					string topic = msg.popstr();
 					string cmd = msg.popstr();
 					string type = msg.popstr();
-					float val = msg.poptyp<float>();
 
 					if (cmd == "REAR_MOTOR")
 					{
+						int val = msg.poptyp<int>();
 						if (type == "VALUE")
 							SetRearValue(val);
 						else if (type == "SPEED")
@@ -179,6 +179,7 @@ namespace Hardware
 					}
 					else if (cmd == "STEER_MOTOR")
 					{
+						float val = msg.poptyp<float>();
 						if (type == "VALUE")
 							SetSteerDegree(val);
 						else if (type == "SPEED")
@@ -657,7 +658,7 @@ namespace Hardware
 		{
 			if (GetFrame(imageInfo))
 			{
-				cv::Mat& img = imageInfo.Image;
+				cv::Mat &img = imageInfo.Image;
 				zmq::multipart_t msg;
 				msg.addtyp(img.cols);
 				msg.addtyp(img.rows);
