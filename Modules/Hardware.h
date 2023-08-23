@@ -105,9 +105,9 @@ namespace Hardware
 		const std::chrono::milliseconds DALTA_DUATION = std::chrono::milliseconds(33);
 		std::atomic<bool> m_isStop;
 		std::atomic<double> m_sonicDistance; // mm
-		std::atomic<double> m_floorLeftValue;
-		std::atomic<double> m_floorCenterValue;
-		std::atomic<double> m_floorRightValue;
+		std::atomic<int> m_floorLeftValue;
+		std::atomic<int> m_floorCenterValue;
+		std::atomic<int> m_floorRightValue;
 		std::mutex m_floorSyncMutex;
 		std::thread m_updateThread;
 		std::thread m_pubThread;
@@ -121,9 +121,9 @@ namespace Hardware
 		bool Init();
 		void Release();
 		double GetSonicSensorValue();
-		double GetFloorLeftValue();
-		double GetFloorCenterValue();
-		double GetFloorRightValue();
+		int GetFloorLeftValue();
+		int GetFloorCenterValue();
+		int GetFloorRightValue();
 	};
 	class CameraSensor : public Camera::DirectCamera
 	{

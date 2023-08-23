@@ -593,10 +593,10 @@ namespace Hardware
 		while (!m_isStop)
 		{
 			m_floorSyncMutex.lock();
-			float sonicValue = m_sonicDistance;
-			float floorLeftValue = m_floorLeftValue;
-			float floorCenterValue = m_floorCenterValue;
-			float floorRightValue = m_floorRightValue;
+			double sonicValue = m_sonicDistance;
+			int floorLeftValue = m_floorLeftValue;
+			int floorCenterValue = m_floorCenterValue;
+			int floorRightValue = m_floorRightValue;
 			m_floorSyncMutex.unlock();
 
 			zmq::multipart_t pubMsg;
@@ -614,15 +614,15 @@ namespace Hardware
 	{
 		return m_sonicDistance;
 	}
-	double Sensors::GetFloorLeftValue()
+	int Sensors::GetFloorLeftValue()
 	{
 		return m_floorLeftValue;
 	}
-	double Sensors::GetFloorCenterValue()
+	int Sensors::GetFloorCenterValue()
 	{
 		return m_floorCenterValue;
 	}
-	double Sensors::GetFloorRightValue()
+	int Sensors::GetFloorRightValue()
 	{
 		return m_floorRightValue;
 	}
