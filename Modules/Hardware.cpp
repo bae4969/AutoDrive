@@ -200,9 +200,9 @@ namespace Hardware
 		while (!m_isStop)
 		{
 			m_updateMutex.lock();
-			float curRearValue = GetRearValue();
-			float tarRearValue = m_targetRearValue;
-			float delDiffRearValue = m_deltaRearValue;
+			int curRearValue = GetRearValue();
+			int tarRearValue = m_targetRearValue;
+			int delDiffRearValue = m_deltaRearValue;
 			float curSteerDegree = GetSteerDegree();
 			float tarSteerDegree = m_targetSteerDegree;
 			float delDiffSteerDegree = m_deltaSteerDegree;
