@@ -535,10 +535,13 @@ namespace Hardware
 	{
 		m_isStop = true;
 		m_updateThread.join();
+		m_pubThread.join();
 	}
 
 	void Sensors::UpdateSonicSensor()
 	{
+		const std::chrono::milliseconds TIMEOUT = std::chrono::milliseconds(10);
+
 		m_tring.SetOutput(false);
 		this_thread::sleep_for(chrono::microseconds(2));
 		m_tring.SetOutput(true);
@@ -582,7 +585,7 @@ namespace Hardware
 		{
 			UpdateSonicSensor();
 			UpdateFloorSensor();
-			this_thread::sleep_for(UPDATE_PERIOD);
+			this_thread::sleep_for(DALTA_DUATION);
 		}
 	}
 	void Sensors::PubThreadFunc()
@@ -622,5 +625,48 @@ namespace Hardware
 	double Sensors::GetFloorRightValue()
 	{
 		return m_floorRightValue;
+	}
+
+	bool CameraSensor::Init(int w, int h, int bufSize, int frameRate)
+	{
+		m_isStop = false;
+
+		if (!DirectCamera::Init(w, h, bufSize, frameRate))
+			return false;
+
+		if (!m_pubSub.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
+		{
+			printf("Fail to init ZMQ for camera sensor\n");
+			return false;
+		}
+		m_pubSub.ChangePubTopic("STATE_CAMERA_SENSOR");
+		m_pubThread = thread(&CameraSensor::PubThreadFunc, this);
+
+		return true;
+	}
+	void CameraSensor::Release()
+	{
+		m_isStop = true;
+		m_pubThread.join();
+	}
+
+	void CameraSensor::PubThreadFunc()
+	{
+		Camera::ImageInfo imageInfo;
+		while (!m_isStop)
+		{
+			if (GetFrame(imageInfo))
+			{
+				cv::Mat& img = imageInfo.Image;
+				zmq::multipart_t msg;
+				msg.addtyp(img.cols);
+				msg.addtyp(img.rows);
+				msg.addtyp((int)img.elemSize());
+				msg.add(zmq::message_t(img.data, img.total() * img.elemSize()));
+				m_pubSub.PublishMessage(msg);
+			}
+
+			this_thread::sleep_for(DALTA_DUATION);
+		}
 	}
 }

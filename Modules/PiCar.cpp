@@ -299,22 +299,6 @@ namespace PiCar
 		}
 	}
 
-	void PiCar::RemoteRun()
-	{
-		m_isStop = false;
-
-		while (!m_isStop)
-		{
-			if (UpdateCameraImage())
-			{
-
-			}
-
-			ExecuteKeyInput(waitKey(100));
-		}
-
-		return;
-	}
 	void PiCar::DirectRun()
 	{
 		m_isStop = false;
@@ -338,30 +322,15 @@ namespace PiCar
 
 		return;
 	}
-
-	void PiCar::TestCameraSensor()
+	void PiCar::RemoteRun()
 	{
-		Camera::ImageInfo img;
+		m_isStop = false;
 
-		for (int i = 0; i < 3; i++)
+		while (!m_isStop)
 		{
-			char buf[128];
-			for (int j = 0; j < 4; j++)
-			{
-				m_cameraMotor.SetYawDegree(-60 + j * 30);
-				this_thread::sleep_for(chrono::milliseconds(500));
-				m_cameraSensor.GetFrame(img);
-				sprintf(buf, "./Output/AutoDrive/%d_1_%d.png", i, j);
-				imwrite(buf, img.Image);
-			}
-			for (int j = 0; j < 4; j++)
-			{
-				m_cameraMotor.SetYawDegree(60 - j * 30);
-				this_thread::sleep_for(chrono::milliseconds(500));
-				m_cameraSensor.GetFrame(img);
-				sprintf(buf, "./Output/AutoDrive/%d_2_%d.png", i, j);
-				imwrite(buf, img.Image);
-			}
+			this_thread::sleep_for(chrono::milliseconds(100));
 		}
+
+		return;
 	}
 }

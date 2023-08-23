@@ -8,13 +8,12 @@
 #include <thread>
 #include <atomic>
 
-#define PROXY_XPUB_STR "ipc://SERVER_XPUB"
-#define PROXY_XSUB_STR "ipc://SERVER_XSUB"
+#define PROXY_XPUB_STR "ipc://temp/SERVER_XPUB"
+#define PROXY_XSUB_STR "ipc://temp/SERVER_XSUB"
 
 namespace Hardware
 {
 	typedef unsigned short ushort;
-	typedef Camera::DirectCamera CameraSensor;
 
 	class MoveMotor
 	{
@@ -104,8 +103,6 @@ namespace Hardware
 		Protocol::ADC m_right;
 
 		const std::chrono::milliseconds DALTA_DUATION = std::chrono::milliseconds(33);
-		const std::chrono::milliseconds UPDATE_PERIOD = std::chrono::milliseconds(100);
-		const std::chrono::milliseconds TIMEOUT = std::chrono::milliseconds(10);
 		std::atomic<bool> m_isStop;
 		std::atomic<double> m_sonicDistance; // mm
 		std::atomic<double> m_floorLeftValue;
@@ -127,5 +124,20 @@ namespace Hardware
 		double GetFloorLeftValue();
 		double GetFloorCenterValue();
 		double GetFloorRightValue();
+	};
+	class CameraSensor : public Camera::DirectCamera
+	{
+	private:
+		Protocol::PubSubClient m_pubSub;
+
+		const std::chrono::milliseconds DALTA_DUATION = std::chrono::milliseconds(33);
+		std::atomic<bool> m_isStop;
+		std::thread m_pubThread;
+
+		void PubThreadFunc();
+
+	public:
+		bool Init(int w = 1280, int h = 960, int bufSize = 120, int frameRate = 30);
+		void Release();
 	};
 }
