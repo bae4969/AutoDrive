@@ -446,7 +446,13 @@ namespace Protocol
 			[](shared_ptr<zmq::socket_t> sub,
 			   shared_ptr<zmq::socket_t> pub)
 			{
-				zmq::proxy(*sub, *pub);
+				try
+				{
+					zmq::proxy(*sub, *pub);
+				}
+				catch (...)
+				{
+				}
 			},
 			m_xSubSocket,
 			m_xPubSocket);

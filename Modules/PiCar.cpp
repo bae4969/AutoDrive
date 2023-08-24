@@ -55,18 +55,20 @@ namespace PiCar
 		{
 		case PICAR_MODE_DIRECT:
 			m_moveMotor.Release();
-			m_sensors.Release();
 			m_cameraMotor.Release();
+			m_sensors.Release();
+			m_cameraSensor.Release();
 			break;
 		case PICAR_MODE_REMOTE:
 			m_moveMotor.Release();
-			m_sensors.Release();
 			m_cameraMotor.Release();
+			m_sensors.Release();
+			m_cameraSensor.Release();
 			m_subThread.join();
 			m_pubThread.join();
 			break;
 		case PICAR_MODE_CAMERA:
-			m_cameraMotor.Release();
+			m_cameraSensor.Release();
 			m_subThread.join();
 			m_pubThread.join();
 			break;
