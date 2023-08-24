@@ -48,17 +48,17 @@ namespace Hardware
 		SetRearValue(0);
 		SetSteerSpeed(50.0f);
 		SetSteerDegree(0.0f);
-		m_updateThread = thread(&MoveMotor::UpdateThreadFunc, this);
+		m_updateThread = thread(&MoveMotor::updateThreadFunc, this);
 
-		if (!m_pubSub.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
+		if (!m_pubSubClient.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
 		{
 			printf("Fail to init ZMQ for move motor\n");
 			return false;
 		}
-		m_pubSub.AddSubTopic("COMMAND_MOVE_MOTOR");
-		m_pubSub.ChangePubTopic("STATE_MOVE_MOTOR");
-		m_subThread = thread(&MoveMotor::SubThreadFunc, this);
-		m_pubThread = thread(&MoveMotor::PubThreadFunc, this);
+		m_pubSubClient.AddSubTopic("COMMAND_MOVE_MOTOR");
+		m_pubSubClient.ChangePubTopic("STATE_MOVE_MOTOR");
+		m_subThread = thread(&MoveMotor::subThreadFunc, this);
+		m_pubThread = thread(&MoveMotor::pubThreadFunc, this);
 
 		return true;
 	}
@@ -68,11 +68,11 @@ namespace Hardware
 		m_updateThread.join();
 		m_subThread.join();
 		m_pubThread.join();
-		UpdateRearValue(0);
-		UpdateSteerDegree(0.0f);
+		updateRearValue(0);
+		updateSteerDegree(0.0f);
 	}
 
-	bool MoveMotor::UpdateRearValue(int value)
+	bool MoveMotor::updateRearValue(int value)
 	{
 		bool isForward = value >= 0;
 		ushort absValue = abs(value);
@@ -90,7 +90,7 @@ namespace Hardware
 
 		return isGood;
 	}
-	bool MoveMotor::UpdateSteerDegree(float degree)
+	bool MoveMotor::updateSteerDegree(float degree)
 	{
 		if (!m_steerMotor.SetDegree(degree))
 		{
@@ -99,7 +99,7 @@ namespace Hardware
 		}
 		return true;
 	}
-	void MoveMotor::UpdateThreadFunc()
+	void MoveMotor::updateThreadFunc()
 	{
 		int curRearValue;
 		int tarRearValue;
@@ -134,7 +134,7 @@ namespace Hardware
 				else
 					thisRearValue = curRearValue - absDiffRearValue;
 
-				UpdateRearValue(thisRearValue);
+				updateRearValue(thisRearValue);
 			}
 
 			absDiffSteerDegree = abs(tarSteerDegree - curSteerDegree);
@@ -148,18 +148,18 @@ namespace Hardware
 				else
 					thisSteerDegree = curSteerDegree - absDiffSteerDegree;
 
-				UpdateSteerDegree(thisSteerDegree);
+				updateSteerDegree(thisSteerDegree);
 			}
 
 			this_thread::sleep_for(DALTA_DUATION);
 		}
 	}
-	void MoveMotor::SubThreadFunc()
+	void MoveMotor::subThreadFunc()
 	{
 		while (!m_isStop)
 		{
 			zmq::multipart_t msg;
-			if (m_pubSub.SubscribeMessage(msg) && msg.size() >= 4)
+			if (m_pubSubClient.SubscribeMessage(msg) && msg.size() >= 4)
 			{
 				try
 				{
@@ -195,7 +195,7 @@ namespace Hardware
 			this_thread::sleep_for(DALTA_DUATION);
 		}
 	}
-	void MoveMotor::PubThreadFunc()
+	void MoveMotor::pubThreadFunc()
 	{
 		while (!m_isStop)
 		{
@@ -215,7 +215,7 @@ namespace Hardware
 			pubMsg.addtyp(curSteerDegree);
 			pubMsg.addtyp(tarSteerDegree);
 			pubMsg.addtyp(delDiffSteerDegree);
-			m_pubSub.PublishMessage(pubMsg);
+			m_pubSubClient.PublishMessage(pubMsg);
 
 			this_thread::sleep_for(DALTA_DUATION);
 		}
@@ -226,7 +226,7 @@ namespace Hardware
 		m_updateMutex.lock();
 		m_targetRearValue = 0;
 		m_updateMutex.unlock();
-		return UpdateRearValue(m_targetRearValue);
+		return updateRearValue(m_targetRearValue);
 	}
 	void MoveMotor::SetRearValue(int value)
 	{
@@ -293,17 +293,17 @@ namespace Hardware
 		SetPitchDegree(0.0f);
 		SetYawSpeed(50.0f);
 		SetYawDegree(0.0f);
-		m_updateThread = thread(&CameraMotor::UpdateThreadFunc, this);
+		m_updateThread = thread(&CameraMotor::updateThreadFunc, this);
 
-		if (!m_pubSub.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
+		if (!m_pubSubClient.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
 		{
 			printf("Fail to init ZMQ for camera motor\n");
 			return false;
 		}
-		m_pubSub.AddSubTopic("COMMAND_CAMERA_MOTOR");
-		m_pubSub.ChangePubTopic("STATE_CAMERA_MOTOR");
-		m_subThread = thread(&CameraMotor::SubThreadFunc, this);
-		m_pubThread = thread(&CameraMotor::PubThreadFunc, this);
+		m_pubSubClient.AddSubTopic("COMMAND_CAMERA_MOTOR");
+		m_pubSubClient.ChangePubTopic("STATE_CAMERA_MOTOR");
+		m_subThread = thread(&CameraMotor::subThreadFunc, this);
+		m_pubThread = thread(&CameraMotor::pubThreadFunc, this);
 
 		return true;
 	}
@@ -313,11 +313,11 @@ namespace Hardware
 		m_updateThread.join();
 		m_subThread.join();
 		m_pubThread.join();
-		UpdatePitchDegree(0.0f);
-		UpdateYawDegree(0.0f);
+		updatePitchDegree(0.0f);
+		updateYawDegree(0.0f);
 	}
 
-	bool CameraMotor::UpdatePitchDegree(float degree)
+	bool CameraMotor::updatePitchDegree(float degree)
 	{
 		if (!m_pitchMotor.SetDegree(-degree))
 		{
@@ -326,7 +326,7 @@ namespace Hardware
 		}
 		return true;
 	}
-	bool CameraMotor::UpdateYawDegree(float degree)
+	bool CameraMotor::updateYawDegree(float degree)
 	{
 		if (!m_yawMotor.SetDegree(-degree))
 		{
@@ -335,7 +335,7 @@ namespace Hardware
 		}
 		return true;
 	}
-	void CameraMotor::UpdateThreadFunc()
+	void CameraMotor::updateThreadFunc()
 	{
 		float curPitchDegree;
 		float tarPitchDegree;
@@ -370,7 +370,7 @@ namespace Hardware
 				else
 					thisPitchDegree = curPitchDegree - absDiffPitchDegree;
 
-				UpdatePitchDegree(thisPitchDegree);
+				updatePitchDegree(thisPitchDegree);
 			}
 
 			absDiffYawDegree = abs(tarYawDegree - curYawDegree);
@@ -385,18 +385,18 @@ namespace Hardware
 				else
 					thisYawDegree = curYawDegree - absDiffYawDegree;
 
-				UpdateYawDegree(thisYawDegree);
+				updateYawDegree(thisYawDegree);
 			}
 
 			this_thread::sleep_for(DALTA_DUATION);
 		}
 	}
-	void CameraMotor::SubThreadFunc()
+	void CameraMotor::subThreadFunc()
 	{
 		while (!m_isStop)
 		{
 			zmq::multipart_t msg;
-			if (m_pubSub.SubscribeMessage(msg) && msg.size() >= 4)
+			if (m_pubSubClient.SubscribeMessage(msg) && msg.size() >= 4)
 			{
 				try
 				{
@@ -429,7 +429,7 @@ namespace Hardware
 			this_thread::sleep_for(DALTA_DUATION);
 		}
 	}
-	void CameraMotor::PubThreadFunc()
+	void CameraMotor::pubThreadFunc()
 	{
 		while (!m_isStop)
 		{
@@ -449,7 +449,7 @@ namespace Hardware
 			pubMsg.addtyp(curYawDegree);
 			pubMsg.addtyp(tarYawDegree);
 			pubMsg.addtyp(delDiffYawDegree);
-			m_pubSub.PublishMessage(pubMsg);
+			m_pubSubClient.PublishMessage(pubMsg);
 
 			this_thread::sleep_for(DALTA_DUATION);
 		}
@@ -520,15 +520,15 @@ namespace Hardware
 		m_floorLeftValue = 0;
 		m_floorCenterValue = 0;
 		m_floorRightValue = 0;
-		m_updateThread = thread(&Sensors::UpdateThreadFunc, this);
+		m_updateThread = thread(&Sensors::updateThreadFunc, this);
 
-		if (!m_pubSub.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
+		if (!m_pubSubClient.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
 		{
 			printf("Fail to init ZMQ for sensor\n");
 			return false;
 		}
-		m_pubSub.ChangePubTopic("STATE_SENSOR");
-		m_pubThread = thread(&Sensors::PubThreadFunc, this);
+		m_pubSubClient.ChangePubTopic("STATE_SENSOR");
+		m_pubThread = thread(&Sensors::pubThreadFunc, this);
 
 		return true;
 	}
@@ -539,7 +539,7 @@ namespace Hardware
 		m_pubThread.join();
 	}
 
-	void Sensors::UpdateSonicSensor()
+	void Sensors::updateSonicSensor()
 	{
 		const std::chrono::milliseconds TIMEOUT = std::chrono::milliseconds(10);
 
@@ -548,25 +548,25 @@ namespace Hardware
 		m_tring.SetOutput(true);
 		this_thread::sleep_for(chrono::microseconds(10));
 		m_tring.SetOutput(false);
-		auto timeoutStart = chrono::system_clock::now();
+		auto timeoutStart = chrono::steady_clock::now();
 		auto pulseStart = timeoutStart;
 		auto pulseEnd = timeoutStart;
 		while (m_echo.GetInput() == 0)
 		{
-			pulseStart = chrono::system_clock::now();
+			pulseStart = chrono::steady_clock::now();
 			if (pulseStart - timeoutStart > TIMEOUT)
 				return;
 		}
 		while (m_echo.GetInput() == 1)
 		{
-			pulseEnd = chrono::system_clock::now();
+			pulseEnd = chrono::steady_clock::now();
 			if (pulseEnd - timeoutStart > TIMEOUT)
 				return;
 		}
 		auto duration = (pulseEnd - pulseStart);
 		m_sonicDistance = duration.count() * 0.00016575; // mm
 	}
-	void Sensors::UpdateFloorSensor()
+	void Sensors::updateFloorSensor()
 	{
 		int t_v1 = m_left.GetValue();
 		int t_v2 = m_center.GetValue();
@@ -580,16 +580,16 @@ namespace Hardware
 		m_floorRightValue = t_v3;
 		m_floorSyncMutex.unlock();
 	}
-	void Sensors::UpdateThreadFunc()
+	void Sensors::updateThreadFunc()
 	{
 		while (!m_isStop)
 		{
-			UpdateSonicSensor();
-			UpdateFloorSensor();
+			updateSonicSensor();
+			updateFloorSensor();
 			this_thread::sleep_for(DALTA_DUATION);
 		}
 	}
-	void Sensors::PubThreadFunc()
+	void Sensors::pubThreadFunc()
 	{
 		while (!m_isStop)
 		{
@@ -605,7 +605,7 @@ namespace Hardware
 			pubMsg.addtyp(floorLeftValue);
 			pubMsg.addtyp(floorCenterValue);
 			pubMsg.addtyp(floorRightValue);
-			m_pubSub.PublishMessage(pubMsg);
+			m_pubSubClient.PublishMessage(pubMsg);
 
 			this_thread::sleep_for(DALTA_DUATION);
 		}
@@ -635,13 +635,13 @@ namespace Hardware
 		if (!DirectCamera::Init(w, h, bufSize, frameRate))
 			return false;
 
-		if (!m_pubSub.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
+		if (!m_pubSubClient.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
 		{
 			printf("Fail to init ZMQ for camera sensor\n");
 			return false;
 		}
-		m_pubSub.ChangePubTopic("STATE_CAMERA_SENSOR");
-		m_pubThread = thread(&CameraSensor::PubThreadFunc, this);
+		m_pubSubClient.ChangePubTopic("STATE_CAMERA_SENSOR");
+		m_pubThread = thread(&CameraSensor::pubThreadFunc, this);
 
 		return true;
 	}
@@ -651,7 +651,7 @@ namespace Hardware
 		m_pubThread.join();
 	}
 
-	void CameraSensor::PubThreadFunc()
+	void CameraSensor::pubThreadFunc()
 	{
 		Camera::ImageInfo imageInfo;
 		while (!m_isStop)
@@ -664,7 +664,7 @@ namespace Hardware
 				msg.addtyp(img.rows);
 				msg.addtyp((int)img.elemSize());
 				msg.add(zmq::message_t(img.data, img.total() * img.elemSize()));
-				m_pubSub.PublishMessage(msg);
+				m_pubSubClient.PublishMessage(msg);
 			}
 
 			this_thread::sleep_for(DALTA_DUATION);

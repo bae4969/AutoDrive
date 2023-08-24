@@ -18,7 +18,7 @@ namespace Hardware
 	class MoveMotor
 	{
 	private:
-		Protocol::PubSubClient m_pubSub;
+		Protocol::PubSubClient m_pubSubClient;
 		Protocol::GPIO m_leftDir;
 		Protocol::GPIO m_rightDir;
 		Protocol::PWMMotor m_leftMotor;
@@ -37,11 +37,11 @@ namespace Hardware
 		std::thread m_subThread;
 		std::thread m_pubThread;
 
-		bool UpdateRearValue(int value);
-		bool UpdateSteerDegree(float degree);
-		void UpdateThreadFunc();
-		void SubThreadFunc();
-		void PubThreadFunc();
+		bool updateRearValue(int value);
+		bool updateSteerDegree(float degree);
+		void updateThreadFunc();
+		void subThreadFunc();
+		void pubThreadFunc();
 
 	public:
 		bool Init(float defaultSteerDegree);
@@ -59,7 +59,7 @@ namespace Hardware
 	class CameraMotor
 	{
 	private:
-		Protocol::PubSubClient m_pubSub;
+		Protocol::PubSubClient m_pubSubClient;
 		Protocol::ServoMotor m_pitchMotor;
 		Protocol::ServoMotor m_yawMotor;
 
@@ -74,11 +74,11 @@ namespace Hardware
 		std::thread m_subThread;
 		std::thread m_pubThread;
 
-		bool UpdatePitchDegree(float degree);
-		bool UpdateYawDegree(float degree);
-		void UpdateThreadFunc();
-		void SubThreadFunc();
-		void PubThreadFunc();
+		bool updatePitchDegree(float degree);
+		bool updateYawDegree(float degree);
+		void updateThreadFunc();
+		void subThreadFunc();
+		void pubThreadFunc();
 
 	public:
 		bool Init(float defaultPitchDegree, float defaultYawDegree);
@@ -95,7 +95,7 @@ namespace Hardware
 	class Sensors
 	{
 	private:
-		Protocol::PubSubClient m_pubSub;
+		Protocol::PubSubClient m_pubSubClient;
 		Protocol::GPIO m_tring;
 		Protocol::GPIO m_echo;
 		Protocol::ADC m_left;
@@ -112,10 +112,10 @@ namespace Hardware
 		std::thread m_updateThread;
 		std::thread m_pubThread;
 
-		void UpdateSonicSensor();
-		void UpdateFloorSensor();
-		void UpdateThreadFunc();
-		void PubThreadFunc();
+		void updateSonicSensor();
+		void updateFloorSensor();
+		void updateThreadFunc();
+		void pubThreadFunc();
 
 	public:
 		bool Init();
@@ -128,13 +128,13 @@ namespace Hardware
 	class CameraSensor : public Camera::DirectCamera
 	{
 	private:
-		Protocol::PubSubClient m_pubSub;
+		Protocol::PubSubClient m_pubSubClient;
 
 		const std::chrono::milliseconds DALTA_DUATION = std::chrono::milliseconds(33);
 		std::atomic<bool> m_isStop;
 		std::thread m_pubThread;
 
-		void PubThreadFunc();
+		void pubThreadFunc();
 
 	public:
 		bool Init(int w = 1280, int h = 960, int bufSize = 120, int frameRate = 30);

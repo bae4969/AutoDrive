@@ -60,7 +60,7 @@ namespace Protocol
 		std::atomic<ushort> m_prescaler;
 		std::atomic<ushort> m_period;
 
-		ushort ConvertBig2Little(ushort value);
+		ushort convertBig2Little(ushort value);
 
 	public:
 		I2C();
@@ -93,7 +93,7 @@ namespace Protocol
 		float m_defaultDegree;
 		float m_curDegree;
 
-		ushort ConvertDegreeToPulseWidth(float degree);
+		ushort convertDegreeToPulseWidth(float degree);
 
 	public:
 		ServoMotor();

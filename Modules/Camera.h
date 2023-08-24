@@ -8,7 +8,7 @@
 
 namespace Camera
 {
-    typedef std::chrono::system_clock::time_point TimeType;
+    typedef std::chrono::steady_clock::time_point TimeType;
 
     struct ImageInfo{
         bool IsSet;
@@ -30,7 +30,7 @@ namespace Camera
         cv::Size m_imageSize;
         std::vector<ImageInfo> m_frameBuffer;
 
-        void InsertNewFrame();
+        void insertNewFrame();
 
     public:
         DirectCamera();

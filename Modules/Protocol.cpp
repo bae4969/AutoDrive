@@ -132,7 +132,7 @@ namespace Protocol
 		m_prescaler = 10;
 		m_period = 4095;
 	}
-	ushort I2C::ConvertBig2Little(ushort val)
+	ushort I2C::convertBig2Little(ushort val)
 	{
 		ushort val_h = val >> 8;
 		ushort val_l = val & 0xff;
@@ -168,7 +168,7 @@ namespace Protocol
 
 		int reg = PULSE_WIDTH_REG_OFFSET + m_channel;
 		i2cWriteMutex.lock();
-		int ret = wiringPiI2CWriteReg16(I2C_FD, reg, ConvertBig2Little(value));
+		int ret = wiringPiI2CWriteReg16(I2C_FD, reg, convertBig2Little(value));
 		i2cWriteMutex.unlock();
 		if (ret < 0)
 		{
@@ -236,7 +236,7 @@ namespace Protocol
 
 		int reg = PRESCALER_REG_OFFSET + m_group;
 		i2cWriteMutex.lock();
-		int ret = wiringPiI2CWriteReg16(I2C_FD, reg, ConvertBig2Little(value));
+		int ret = wiringPiI2CWriteReg16(I2C_FD, reg, convertBig2Little(value));
 		i2cWriteMutex.unlock();
 		if (ret < 0)
 		{
@@ -257,7 +257,7 @@ namespace Protocol
 
 		int reg = PERIOD_REG_OFFSET + m_group;
 		i2cWriteMutex.lock();
-		int ret = wiringPiI2CWriteReg16(I2C_FD, reg, ConvertBig2Little(value));
+		int ret = wiringPiI2CWriteReg16(I2C_FD, reg, convertBig2Little(value));
 		i2cWriteMutex.unlock();
 		if (ret < 0)
 		{
@@ -312,7 +312,7 @@ namespace Protocol
 		m_defaultDegree = 0.0f;
 		m_curDegree = 0.0f;
 	}
-	ushort ServoMotor::ConvertDegreeToPulseWidth(float degree)
+	ushort ServoMotor::convertDegreeToPulseWidth(float degree)
 	{
 		degree += m_defaultDegree;
 		const float in_min = -90.0f;
@@ -346,7 +346,7 @@ namespace Protocol
 	}
 	bool ServoMotor::SetDegree(float degree)
 	{
-		ushort pulseWidth = ConvertDegreeToPulseWidth(degree);
+		ushort pulseWidth = convertDegreeToPulseWidth(degree);
 		if (!SetPulseWidth(pulseWidth))
 			return false;
 

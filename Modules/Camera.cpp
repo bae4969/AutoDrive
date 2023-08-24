@@ -45,11 +45,11 @@ namespace Camera
 		this_thread::sleep_for(chrono::seconds(3));
 
 		m_threadStop = false;
-		m_captureThread = thread(&DirectCamera::InsertNewFrame, this);
+		m_captureThread = thread(&DirectCamera::insertNewFrame, this);
 
 		return true;
 	}
-	void DirectCamera::InsertNewFrame()
+	void DirectCamera::insertNewFrame()
 	{
 		while (!m_threadStop)
 		{
@@ -64,7 +64,7 @@ namespace Camera
 
 			m_bufferMutex.lock();
 			m_frameBuffer[nextBufIdx].IsSet = true;
-			m_frameBuffer[nextBufIdx].Time = chrono::system_clock::now();
+			m_frameBuffer[nextBufIdx].Time = chrono::steady_clock::now();
 			m_rasCam.retrieve(m_frameBuffer[nextBufIdx].Image);
 			m_bufferIndex = nextBufIdx;
 			m_bufferMutex.unlock();

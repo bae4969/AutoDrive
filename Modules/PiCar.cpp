@@ -5,7 +5,6 @@
 #include <iostream>
 #include <math.h>
 #include <chrono>
-#include <thread>
 
 using namespace std;
 using namespace cv;
@@ -15,18 +14,60 @@ using namespace cv;
 
 namespace PiCar
 {
+	bool PiCar::Init(PICAR_MODE mode)
+	{
+		m_curMode = PICAR_MODE_NOT_SET;
+		switch (mode)
+		{
+		case PICAR_MODE_DIRECT:
+			if (!initHardware() || !initCamera())
+			{
+				printf("Fail to init direct mode\n");
+				return false;
+			}
+			break;
+		case PICAR_MODE_REMOTE:
+			if (!initHardware() || !initCamera() || !initRemote())
+			{
+				printf("Fail to init remote mode\n");
+				return false;
+			}
+			break;
+		case PICAR_MODE_CAMERA:
+			if (!initCamera() || !initRemote())
+			{
+				printf("Fail to init camera mode\n");
+				return false;
+			}
+			break;
+		default:
+			printf("Invalid mode\n");
+			return false;
+		}
 
-	bool PiCar::Init()
+		m_curMode = mode;
+		printf("Success to init PiCar\n");
+		return true;
+	}
+	void PiCar::Release()
+	{
+		switch (m_curMode)
+		{
+		case PICAR_MODE_DIRECT:
+		case PICAR_MODE_REMOTE:
+			m_moveMotor.Release();
+			m_sensors.Release();
+		case PICAR_MODE_CAMERA:
+			m_cameraMotor.Release();
+		default:
+			break;
+		}
+	}
+	bool PiCar::initHardware()
 	{
 		float defaultSteerAngle = 0.0f;
 		float defaultPitchAngle = 0.0f;
 		float defaultYawAngle = 0.0f;
-		vector<string> xPubConnStrs;
-		vector<string> xSubConnStrs;
-		xPubConnStrs.push_back(PROXY_XPUB_STR);
-		xPubConnStrs.push_back("tcp://*:45000");
-		xSubConnStrs.push_back(PROXY_XSUB_STR);
-		xSubConnStrs.push_back("tcp://*:45001");
 		FILE *file_r = fopen("CailData.data", "r");
 		if (file_r)
 		{
@@ -67,28 +108,48 @@ namespace PiCar
 			printf("Fail to init sensors\n");
 			return false;
 		}
-		if (!m_cameraSensor.Init())
+
+		return true;
+	}
+	bool PiCar::initCamera()
+	{
+		int w = 1280;
+		int h = 960;
+		int bufSize = 120;
+		int frameRate = 30;
+		if (!m_cameraSensor.Init(w, h, bufSize, frameRate))
 		{
 			printf("Fail to init camera sensor module\n");
 			return false;
 		}
-		if (!m_pubSub.Init(xPubConnStrs, xSubConnStrs))
+
+		return true;
+	}
+	bool PiCar::initRemote()
+	{
+		vector<string> xPubConnStrs;
+		vector<string> xSubConnStrs;
+		xPubConnStrs.push_back(PROXY_XPUB_STR);
+		xPubConnStrs.push_back("tcp://*:45000");
+		xSubConnStrs.push_back(PROXY_XSUB_STR);
+		xSubConnStrs.push_back("tcp://*:45001");
+		if (!m_pubSubClient.Init(PROXY_XSUB_STR, PROXY_XPUB_STR) ||
+			!m_pubSubServer.Init(xPubConnStrs, xSubConnStrs))
 		{
 			printf("Fail to init proxy server\n");
 			return false;
 		}
+		m_pubSubClient.AddSubTopic("COMMAND_PICAR");
+		m_pubSubClient.ChangePubTopic("STATE_PICAR");
 
-		printf("Success to init PiCar\n");
 		return true;
 	}
-	void PiCar::Release()
-	{
-		m_moveMotor.Release();
-		m_sensors.Release();
-		m_cameraMotor.Release();
-	}
 
-	bool PiCar::UpdateCameraImage()
+	bool PiCar::isConnected()
+	{
+		return CONNECTION_TIMEOUT.count() > chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - lastConnTime).count();
+	}
+	bool PiCar::updateCameraImage()
 	{
 		Camera::ImageInfo imgInfo;
 		if (!m_cameraSensor.GetFrame(imgInfo))
@@ -218,7 +279,7 @@ namespace PiCar
 
 		return true;
 	}
-	void PiCar::ExecuteKeyInput(char ch)
+	void PiCar::executeKeyInput(char ch)
 	{
 		int temp_i;
 		float temp_f;
@@ -298,8 +359,73 @@ namespace PiCar
 			break;
 		}
 	}
+	void PiCar::subThreadFunc()
+	{
+		lastConnTime = chrono::steady_clock::now();
+		while (!m_isStop)
+		{
+			zmq::multipart_t msg;
+			if (m_pubSubClient.SubscribeMessage(msg) && msg.size() >= 2)
+			{
+				try
+				{
+					string topic = msg.popstr();
+					string cmd = msg.popstr();
 
-	void PiCar::DirectRun()
+					if (cmd == "TURN_OFF")
+					{
+						m_isStop = true;
+					}
+					else if (cmd == "UPDATE_CONNECTION")
+					{
+						lastConnTime = chrono::steady_clock::now();
+					}
+				}
+				catch (...)
+				{
+					printf("Invalid massage was detected in PiCar\n");
+				}
+			}
+
+			if (m_curMode != PICAR_MODE_CAMERA && !isConnected())
+				m_moveMotor.StopRearNow();
+
+			this_thread::sleep_for(DALTA_DUATION);
+		}
+	}
+	void PiCar::pubThreadFunc()
+	{
+		while (!m_isStop)
+		{
+			string state = !m_isStop ? "RUNNING" : "STOP";
+
+			zmq::multipart_t pubMsg;
+			pubMsg.addstr(state);
+			m_pubSubClient.PublishMessage(pubMsg);
+
+			this_thread::sleep_for(DALTA_DUATION);
+		}
+	}
+
+	void PiCar::Run()
+	{
+		switch (m_curMode)
+		{
+		case PICAR_MODE_DIRECT:
+			runDirectMode();
+			break;
+		case PICAR_MODE_REMOTE:
+			runRemoteMode();
+			break;
+		case PICAR_MODE_CAMERA:
+			runCameraMode();
+			break;
+		default:
+			printf("Invalid mode\n");
+			return;
+		}
+	}
+	void PiCar::runDirectMode()
 	{
 		m_isStop = false;
 
@@ -309,22 +435,37 @@ namespace PiCar
 		resizeWindow(winName, winSize);
 		while (!m_isStop)
 		{
-			if (UpdateCameraImage())
+			if (updateCameraImage())
 			{
 				imgBufferMutex.lock();
 				imshow(winName, imgBuffer);
 				imgBufferMutex.unlock();
 			}
 
-			ExecuteKeyInput(waitKey(100));
+			executeKeyInput(waitKey(100));
 		}
 		destroyWindow(winName);
 
 		return;
 	}
-	void PiCar::RemoteRun()
+	void PiCar::runRemoteMode()
 	{
 		m_isStop = false;
+		m_subThread = thread(&PiCar::subThreadFunc, this);
+		m_pubThread = thread(&PiCar::pubThreadFunc, this);
+
+		while (!m_isStop)
+		{
+			this_thread::sleep_for(chrono::milliseconds(100));
+		}
+
+		return;
+	}
+	void PiCar::runCameraMode()
+	{
+		m_isStop = false;
+		m_subThread = thread(&PiCar::subThreadFunc, this);
+		m_pubThread = thread(&PiCar::pubThreadFunc, this);
 
 		while (!m_isStop)
 		{
