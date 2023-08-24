@@ -114,9 +114,9 @@ namespace Protocol
 
 	class PubSubClient
 	{
-		std::shared_ptr<zmq::context_t> m_zmqContext;
-		std::shared_ptr<zmq::socket_t> m_subSocket;
-		std::shared_ptr<zmq::socket_t> m_pubSocket;
+		std::shared_ptr<zmq::context_t> m_zmqContext = NULL;
+		std::shared_ptr<zmq::socket_t> m_subSocket = NULL;
+		std::shared_ptr<zmq::socket_t> m_pubSocket = NULL;
 		std::string m_pubTopic;
 
 	public:
@@ -127,14 +127,14 @@ namespace Protocol
 		void PublishMessage(zmq::multipart_t &msg);
 		void AddSubTopic(std::string topic);
 		void RemoveSubTopic(std::string topic);
-		bool SubscribeMessage(zmq::multipart_t& msg);
+		bool SubscribeMessage(zmq::multipart_t &msg);
 	};
 	class PubSubServer
 	{
 		std::thread m_subThread;
-		std::shared_ptr<zmq::context_t> m_zmqContext;
-		std::shared_ptr<zmq::socket_t> m_xSubSocket;
-		std::shared_ptr<zmq::socket_t> m_xPubSocket;
+		std::shared_ptr<zmq::context_t> m_zmqContext = NULL;
+		std::shared_ptr<zmq::socket_t> m_xSubSocket = NULL;
+		std::shared_ptr<zmq::socket_t> m_xPubSocket = NULL;
 
 	public:
 		bool Init(std::vector<std::string> xPubConnStrs, std::vector<std::string> xSubConnStrs);

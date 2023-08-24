@@ -7,12 +7,11 @@ int main(int argc, char **argv)
     PiCar::PiCar car;
     try
     {
-        int type = atoi(argv[1]);
         PiCar::PICAR_MODE mode;
         if (argc < 2)
             mode = PiCar::PICAR_MODE_DIRECT;
         else
-            switch (type)
+            switch (atoi(argv[1]))
             {
             case 1:
                 mode = PiCar::PICAR_MODE_DIRECT;

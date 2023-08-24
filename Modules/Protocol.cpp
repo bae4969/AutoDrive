@@ -403,8 +403,10 @@ namespace Protocol
 	}
 	PubSubClient::~PubSubClient()
 	{
-		m_subSocket->close();
-		m_pubSocket->close();
+		if (m_subSocket)
+			m_subSocket->close();
+		if (m_pubSocket)
+			m_pubSocket->close();
 	}
 
 	void PubSubClient::ChangePubTopic(std::string topic)
@@ -424,7 +426,7 @@ namespace Protocol
 	{
 		m_subSocket->setsockopt(ZMQ_UNSUBSCRIBE, topic);
 	}
-	bool PubSubClient::SubscribeMessage(zmq::multipart_t& msg)
+	bool PubSubClient::SubscribeMessage(zmq::multipart_t &msg)
 	{
 		return msg.recv(*m_subSocket);
 	}
@@ -441,7 +443,8 @@ namespace Protocol
 			m_xPubSocket->bind(xPubConnStr);
 
 		m_subThread = thread(
-			[](shared_ptr<zmq::socket_t> sub, shared_ptr<zmq::socket_t> pub)
+			[](shared_ptr<zmq::socket_t> sub,
+			   shared_ptr<zmq::socket_t> pub)
 			{
 				zmq::proxy(*sub, *pub);
 			},
@@ -452,8 +455,10 @@ namespace Protocol
 	}
 	PubSubServer::~PubSubServer()
 	{
-		m_xSubSocket->close();
-		m_xPubSocket->close();
+		if (m_xSubSocket)
+			m_xSubSocket->close();
+		if (m_xPubSocket)
+			m_xPubSocket->close();
 		m_subThread.join();
 	}
 }
