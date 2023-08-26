@@ -1,5 +1,6 @@
-# This project for Raspberry Pi and PiCar-X (expansion module)
+# AutoDrive
 	This project is for personal research project.
+	This project needs Raspberry Pi and PiCar-X (expansion module)
 		
 # Overviews
 	1. Main control has xpub-xsub proxy server and it bind ipc endpoint.
