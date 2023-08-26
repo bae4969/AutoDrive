@@ -396,6 +396,9 @@ namespace Protocol
 		m_pubTopic = "NOT DEFINED";
 
 		m_subSocket->setsockopt(ZMQ_RCVTIMEO, 1);
+		m_subSocket->setsockopt(ZMQ_RCVHWM, 10);
+		m_pubSocket->setsockopt(ZMQ_SNDHWM, 10);
+
 		m_subSocket->connect(subConnStr);
 		m_pubSocket->connect(pubConnStr);
 
@@ -436,6 +439,8 @@ namespace Protocol
 		m_zmqContext = make_shared<zmq::context_t>(3);
 		m_xSubSocket = make_shared<zmq::socket_t>(*m_zmqContext, zmq::socket_type::xsub);
 		m_xPubSocket = make_shared<zmq::socket_t>(*m_zmqContext, zmq::socket_type::xpub);
+		m_xSubSocket->setsockopt(ZMQ_RCVHWM, 10);
+		m_xPubSocket->setsockopt(ZMQ_SNDHWM, 10);
 
 		for (string xSubConnStr : xSubConnStrs)
 			m_xSubSocket->bind(xSubConnStr);
