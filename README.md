@@ -1,15 +1,15 @@
 This project for Raspberry Pi and PiCar-X (expansion module)
 
 # Softwares
-	1. opencv4
+	## opencv4
 		- use for image buffer (not essential)
-	2. raspicam_cv
+	## raspicam_cv
 		- use for get image via raspberry camera
-	3. wiringPi
+	## wiringPi
 		- use for controling gpio pins
-	4. wiringPiI2C
+	## wiringPiI2C
 		- use for controling I2C board
-	5. cppzmq
+	## cppzmq
 		- use for controling hardwares
 		- use for network controls
 
