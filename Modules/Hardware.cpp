@@ -15,6 +15,9 @@ using namespace std;
 
 namespace Hardware
 {
+	const std::chrono::milliseconds MOTION_DALTA_DUATION = std::chrono::milliseconds(33);
+	const std::chrono::milliseconds CAMERA_DALTA_DUATION = std::chrono::milliseconds(50);
+
 	bool MoveMotor::Init(float defaultSteerAngle)
 	{
 		if (!m_leftDir.Init(Protocol::GPIO_PIN_REAR_LEFT_DIRECTION, true))
@@ -101,6 +104,8 @@ namespace Hardware
 	}
 	void MoveMotor::updateThreadFunc()
 	{
+		chrono::steady_clock::time_point start;
+
 		int curRearValue;
 		int tarRearValue;
 		int thisRearValue;
@@ -114,6 +119,8 @@ namespace Hardware
 		float absDiffSteerDegree;
 		while (!m_isStop)
 		{
+			start = chrono::steady_clock::now();
+
 			m_updateMutex.lock();
 			curRearValue = GetRearValue();
 			curSteerDegree = GetSteerDegree();
@@ -151,13 +158,17 @@ namespace Hardware
 				updateSteerDegree(thisSteerDegree);
 			}
 
-			this_thread::sleep_for(DALTA_DUATION);
+			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
 	}
 	void MoveMotor::subThreadFunc()
 	{
+		chrono::steady_clock::time_point start;
+
 		while (!m_isStop)
 		{
+			start = chrono::steady_clock::now();
+
 			zmq::multipart_t msg;
 			if (m_pubSubClient.SubscribeMessage(msg) && msg.size() >= 4)
 			{
@@ -192,13 +203,17 @@ namespace Hardware
 				}
 			}
 
-			this_thread::sleep_for(DALTA_DUATION);
+			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
 	}
 	void MoveMotor::pubThreadFunc()
 	{
+		chrono::steady_clock::time_point start;
+
 		while (!m_isStop)
 		{
+			start = chrono::steady_clock::now();
+
 			m_updateMutex.lock();
 			int curRearValue = GetRearValue();
 			int tarRearValue = m_targetRearValue;
@@ -217,7 +232,7 @@ namespace Hardware
 			pubMsg.addtyp(delDiffSteerDegree);
 			m_pubSubClient.PublishMessage(pubMsg);
 
-			this_thread::sleep_for(DALTA_DUATION);
+			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
 	}
 
@@ -242,7 +257,7 @@ namespace Hardware
 	void MoveMotor::SetRearSpeed(int valuePerSecond)
 	{
 		m_updateMutex.lock();
-		m_deltaRearValue = abs(round(valuePerSecond * DALTA_DUATION.count() / 1000.0));
+		m_deltaRearValue = abs(round(valuePerSecond * MOTION_DALTA_DUATION.count() / 1000.0));
 		m_updateMutex.unlock();
 	}
 	int MoveMotor::GetRearValue()
@@ -267,7 +282,7 @@ namespace Hardware
 	void MoveMotor::SetSteerSpeed(float degreePerSecond)
 	{
 		m_updateMutex.lock();
-		m_deltaSteerDegree = abs(degreePerSecond * DALTA_DUATION.count() / 1000.0f);
+		m_deltaSteerDegree = abs(degreePerSecond * MOTION_DALTA_DUATION.count() / 1000.0f);
 		m_updateMutex.unlock();
 	}
 	float MoveMotor::GetSteerDegree()
@@ -337,6 +352,8 @@ namespace Hardware
 	}
 	void CameraMotor::updateThreadFunc()
 	{
+		chrono::steady_clock::time_point start;
+
 		float curPitchDegree;
 		float tarPitchDegree;
 		float thisPitchDegree;
@@ -348,8 +365,11 @@ namespace Hardware
 		float thisYawDegree;
 		float delDiffYawDegree;
 		float absDiffYawDegree;
+
 		while (!m_isStop)
 		{
+			start = chrono::steady_clock::now();
+
 			m_updateMutex.lock();
 			curPitchDegree = GetPitchDegree();
 			curYawDegree = GetYawDegree();
@@ -388,13 +408,16 @@ namespace Hardware
 				updateYawDegree(thisYawDegree);
 			}
 
-			this_thread::sleep_for(DALTA_DUATION);
+			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
 	}
 	void CameraMotor::subThreadFunc()
 	{
+		chrono::steady_clock::time_point start;
 		while (!m_isStop)
 		{
+			start = chrono::steady_clock::now();
+
 			zmq::multipart_t msg;
 			if (m_pubSubClient.SubscribeMessage(msg) && msg.size() >= 4)
 			{
@@ -426,13 +449,17 @@ namespace Hardware
 				}
 			}
 
-			this_thread::sleep_for(DALTA_DUATION);
+			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
 	}
 	void CameraMotor::pubThreadFunc()
 	{
+		chrono::steady_clock::time_point start;
+
 		while (!m_isStop)
 		{
+			start = chrono::steady_clock::now();
+
 			m_updateMutex.lock();
 			float curPitchDegree = GetPitchDegree();
 			float tarPitchDegree = m_targetPitchDegree;
@@ -451,7 +478,7 @@ namespace Hardware
 			pubMsg.addtyp(delDiffYawDegree);
 			m_pubSubClient.PublishMessage(pubMsg);
 
-			this_thread::sleep_for(DALTA_DUATION);
+			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
 	}
 
@@ -469,7 +496,7 @@ namespace Hardware
 	void CameraMotor::SetPitchSpeed(float degreePerSecond)
 	{
 		m_updateMutex.lock();
-		m_deltaPitchDegree = abs(degreePerSecond * DALTA_DUATION.count() / 1000.0f);
+		m_deltaPitchDegree = abs(degreePerSecond * MOTION_DALTA_DUATION.count() / 1000.0f);
 		m_updateMutex.unlock();
 	}
 	float CameraMotor::GetPitchDegree()
@@ -491,7 +518,7 @@ namespace Hardware
 	void CameraMotor::SetYawSpeed(float degreePerSecond)
 	{
 		m_updateMutex.lock();
-		m_deltaYawDegree = abs(degreePerSecond * DALTA_DUATION.count() / 1000.0f);
+		m_deltaYawDegree = abs(degreePerSecond * MOTION_DALTA_DUATION.count() / 1000.0f);
 		m_updateMutex.unlock();
 	}
 	float CameraMotor::GetYawDegree()
@@ -582,17 +609,26 @@ namespace Hardware
 	}
 	void Sensors::updateThreadFunc()
 	{
+		chrono::steady_clock::time_point start;
+
 		while (!m_isStop)
 		{
+			start = chrono::steady_clock::now();
+
 			updateSonicSensor();
 			updateFloorSensor();
-			this_thread::sleep_for(DALTA_DUATION);
+
+			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
 	}
 	void Sensors::pubThreadFunc()
 	{
+		chrono::steady_clock::time_point start;
+
 		while (!m_isStop)
 		{
+			start = chrono::steady_clock::now();
+
 			m_floorSyncMutex.lock();
 			double sonicValue = m_sonicDistance;
 			int floorLeftValue = m_floorLeftValue;
@@ -607,7 +643,7 @@ namespace Hardware
 			pubMsg.addtyp(floorRightValue);
 			m_pubSubClient.PublishMessage(pubMsg);
 
-			this_thread::sleep_for(DALTA_DUATION);
+			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
 	}
 
@@ -653,21 +689,45 @@ namespace Hardware
 
 	void CameraSensor::pubThreadFunc()
 	{
+		chrono::steady_clock::time_point start;
 		Camera::ImageInfo imageInfo;
+		cv::Size imgSize = GetSize();
+		int w = imgSize.width;
+		int h = imgSize.height;
+		int ch = 3;
+		size_t totSize = imgSize.area() * 3;
+
+		// string encodeType = ".png";
+		// vector<int> encodeParas;
+		// encodeParas.push_back(cv::IMWRITE_PNG_COMPRESSION);
+		// encodeParas.push_back(1);	// 0~7
+
+		// string encodeType = ".png";
+		// vector<int> encodeParas;
+		// encodeParas.push_back(cv::IMWRITE_JPEG_QUALITY);
+		// encodeParas.push_back(90);     // 0...100 (higher is better)
+
 		while (!m_isStop)
 		{
+			start = chrono::steady_clock::now();
+
 			if (GetFrame(imageInfo))
 			{
 				cv::Mat &img = imageInfo.Image;
+				
+				// vector<uchar> img_encoded;
+				// cv::imencode(encodeType, img, img_encoded, encodeParas);
+
 				zmq::multipart_t msg;
-				msg.addtyp(img.cols);
-				msg.addtyp(img.rows);
-				msg.addtyp((int)img.elemSize());
-				msg.add(zmq::message_t(img.data, img.total() * img.elemSize()));
+				msg.addtyp(w);
+				msg.addtyp(h);
+				msg.addtyp(ch);
+				msg.addmem(img.data, totSize);
+				// msg.addmem(img_encoded.data(), img_encoded.size());
 				m_pubSubClient.PublishMessage(msg);
 			}
 
-			this_thread::sleep_for(DALTA_DUATION);
+			this_thread::sleep_for(CAMERA_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
 	}
 }

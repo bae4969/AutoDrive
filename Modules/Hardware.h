@@ -25,7 +25,6 @@ namespace Hardware
 		Protocol::PWMMotor m_rightMotor;
 		Protocol::ServoMotor m_steerMotor;
 
-		const std::chrono::milliseconds DALTA_DUATION = std::chrono::milliseconds(33);
 		std::atomic<bool> m_isStop;
 		std::atomic<int> m_targetRearValue;
 		std::atomic<int> m_deltaRearValue;
@@ -63,7 +62,6 @@ namespace Hardware
 		Protocol::ServoMotor m_pitchMotor;
 		Protocol::ServoMotor m_yawMotor;
 
-		const std::chrono::milliseconds DALTA_DUATION = std::chrono::milliseconds(33);
 		std::atomic<bool> m_isStop;
 		std::atomic<float> m_targetPitchDegree;
 		std::atomic<float> m_deltaPitchDegree;
@@ -102,7 +100,6 @@ namespace Hardware
 		Protocol::ADC m_center;
 		Protocol::ADC m_right;
 
-		const std::chrono::milliseconds DALTA_DUATION = std::chrono::milliseconds(33);
 		std::atomic<bool> m_isStop;
 		std::atomic<double> m_sonicDistance; // mm
 		std::atomic<int> m_floorLeftValue;
@@ -130,7 +127,6 @@ namespace Hardware
 	private:
 		Protocol::PubSubClient m_pubSubClient;
 
-		const std::chrono::milliseconds DALTA_DUATION = std::chrono::milliseconds(33);
 		std::atomic<bool> m_isStop;
 		std::thread m_pubThread;
 

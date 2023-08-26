@@ -433,7 +433,7 @@ namespace Protocol
 
 	bool PubSubServer::Init(vector<string> xPubConnStrs, vector<string> xSubConnStrs)
 	{
-		m_zmqContext = make_shared<zmq::context_t>(2);
+		m_zmqContext = make_shared<zmq::context_t>(3);
 		m_xSubSocket = make_shared<zmq::socket_t>(*m_zmqContext, zmq::socket_type::xsub);
 		m_xPubSocket = make_shared<zmq::socket_t>(*m_zmqContext, zmq::socket_type::xpub);
 
