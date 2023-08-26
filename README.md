@@ -1,6 +1,6 @@
 This project for Raspberry Pi and PiCar-X (expansion module)
 
-# Softwares
+# Libraries
 	1. opencv4
 		- use for image buffer (not essential)
 	2. raspicam_cv
