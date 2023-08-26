@@ -34,7 +34,7 @@ int main(int argc, char **argv)
         printf("Argument must be integer value\n");
         printf("1 : Direct control mode\n");
         printf("2 : Remote control mode\n");
-        printf("3 : Camera mode\n");
+        printf("3 : Camera mode\n"); 
         return -1;
     }
 
