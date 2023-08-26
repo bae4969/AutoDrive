@@ -168,41 +168,39 @@ namespace Hardware
 		while (!m_isStop)
 		{
 			start = chrono::steady_clock::now();
-
-			zmq::multipart_t msg;
-			if (m_pubSubClient.SubscribeMessage(msg) && msg.size() >= 4)
+			try
 			{
-				try
-				{
-					string topic = msg.popstr();
-					string cmd = msg.popstr();
-					string type = msg.popstr();
+				zmq::multipart_t msg;
+				if (!m_pubSubClient.SubscribeMessage(msg) || msg.size() < 4)
+					throw std::exception();
 
-					if (cmd == "REAR_MOTOR")
-					{
-						int val = msg.poptyp<int>();
-						if (type == "VALUE")
-							SetRearValue(val);
-						else if (type == "SPEED")
-							SetRearSpeed(val);
-						else if (type == "STOP")
-							StopRearNow();
-					}
-					else if (cmd == "STEER_MOTOR")
-					{
-						float val = msg.poptyp<float>();
-						if (type == "VALUE")
-							SetSteerDegree(val);
-						else if (type == "SPEED")
-							SetSteerSpeed(val);
-					}
-				}
-				catch (...)
+				string topic = msg.popstr();
+				string cmd = msg.popstr();
+				string type = msg.popstr();
+
+				if (cmd == "REAR_MOTOR")
 				{
-					printf("Invalid massage was detected in MoveMotor\n");
+					int val = msg.poptyp<int>();
+					if (type == "VALUE")
+						SetRearValue(val);
+					else if (type == "SPEED")
+						SetRearSpeed(val);
+					else if (type == "STOP")
+						StopRearNow();
+				}
+				else if (cmd == "STEER_MOTOR")
+				{
+					float val = msg.poptyp<float>();
+					if (type == "VALUE")
+						SetSteerDegree(val);
+					else if (type == "SPEED")
+						SetSteerSpeed(val);
 				}
 			}
-
+			catch (...)
+			{
+				printf("Invalid massage was detected in MoveMotor\n");
+			}
 			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
 	}
@@ -213,7 +211,6 @@ namespace Hardware
 		while (!m_isStop)
 		{
 			start = chrono::steady_clock::now();
-
 			m_updateMutex.lock();
 			int curRearValue = GetRearValue();
 			int tarRearValue = m_targetRearValue;
@@ -223,15 +220,21 @@ namespace Hardware
 			float delDiffSteerDegree = m_deltaSteerDegree;
 			m_updateMutex.unlock();
 
-			zmq::multipart_t pubMsg;
-			pubMsg.addtyp(curRearValue);
-			pubMsg.addtyp(tarRearValue);
-			pubMsg.addtyp(delDiffRearValue);
-			pubMsg.addtyp(curSteerDegree);
-			pubMsg.addtyp(tarSteerDegree);
-			pubMsg.addtyp(delDiffSteerDegree);
-			m_pubSubClient.PublishMessage(pubMsg);
-
+			try
+			{
+				zmq::multipart_t pubMsg;
+				pubMsg.addtyp(curRearValue);
+				pubMsg.addtyp(tarRearValue);
+				pubMsg.addtyp(delDiffRearValue);
+				pubMsg.addtyp(curSteerDegree);
+				pubMsg.addtyp(tarSteerDegree);
+				pubMsg.addtyp(delDiffSteerDegree);
+				m_pubSubClient.PublishMessage(pubMsg);
+			}
+			catch (...)
+			{
+				printf("Fail to publish massage in MoveMotor\n");
+			}
 			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
 	}
@@ -417,38 +420,36 @@ namespace Hardware
 		while (!m_isStop)
 		{
 			start = chrono::steady_clock::now();
-
-			zmq::multipart_t msg;
-			if (m_pubSubClient.SubscribeMessage(msg) && msg.size() >= 4)
+			try
 			{
-				try
-				{
-					string topic = msg.popstr();
-					string cmd = msg.popstr();
-					string type = msg.popstr();
-					float val = msg.poptyp<float>();
+				zmq::multipart_t msg;
+				if (!m_pubSubClient.SubscribeMessage(msg) || msg.size() < 4)
+					throw std::exception();
 
-					if (cmd == "PITCH_MOTOR")
-					{
-						if (type == "VALUE")
-							SetPitchDegree(val);
-						else if (type == "SPEED")
-							SetPitchSpeed(val);
-					}
-					else if (cmd == "YAW_MOTOR")
-					{
-						if (type == "VALUE")
-							SetYawDegree(val);
-						else if (type == "SPEED")
-							SetYawSpeed(val);
-					}
-				}
-				catch (...)
+				string topic = msg.popstr();
+				string cmd = msg.popstr();
+				string type = msg.popstr();
+				float val = msg.poptyp<float>();
+
+				if (cmd == "PITCH_MOTOR")
 				{
-					printf("Invalid massage was detected in PitchMotor\n");
+					if (type == "VALUE")
+						SetPitchDegree(val);
+					else if (type == "SPEED")
+						SetPitchSpeed(val);
+				}
+				else if (cmd == "YAW_MOTOR")
+				{
+					if (type == "VALUE")
+						SetYawDegree(val);
+					else if (type == "SPEED")
+						SetYawSpeed(val);
 				}
 			}
-
+			catch (...)
+			{
+				printf("Invalid massage was detected in CameraMotor\n");
+			}
 			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
 	}
@@ -459,7 +460,6 @@ namespace Hardware
 		while (!m_isStop)
 		{
 			start = chrono::steady_clock::now();
-
 			m_updateMutex.lock();
 			float curPitchDegree = GetPitchDegree();
 			float tarPitchDegree = m_targetPitchDegree;
@@ -469,15 +469,21 @@ namespace Hardware
 			float delDiffYawDegree = m_deltaYawDegree;
 			m_updateMutex.unlock();
 
-			zmq::multipart_t pubMsg;
-			pubMsg.addtyp(curPitchDegree);
-			pubMsg.addtyp(tarPitchDegree);
-			pubMsg.addtyp(delDiffPitchDegree);
-			pubMsg.addtyp(curYawDegree);
-			pubMsg.addtyp(tarYawDegree);
-			pubMsg.addtyp(delDiffYawDegree);
-			m_pubSubClient.PublishMessage(pubMsg);
-
+			try
+			{
+				zmq::multipart_t pubMsg;
+				pubMsg.addtyp(curPitchDegree);
+				pubMsg.addtyp(tarPitchDegree);
+				pubMsg.addtyp(delDiffPitchDegree);
+				pubMsg.addtyp(curYawDegree);
+				pubMsg.addtyp(tarYawDegree);
+				pubMsg.addtyp(delDiffYawDegree);
+				m_pubSubClient.PublishMessage(pubMsg);
+			}
+			catch (...)
+			{
+				printf("Fail to publish massage in CameraMotor\n");
+			}
 			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
 	}
@@ -628,7 +634,6 @@ namespace Hardware
 		while (!m_isStop)
 		{
 			start = chrono::steady_clock::now();
-
 			m_floorSyncMutex.lock();
 			double sonicValue = m_sonicDistance;
 			int floorLeftValue = m_floorLeftValue;
@@ -636,13 +641,19 @@ namespace Hardware
 			int floorRightValue = m_floorRightValue;
 			m_floorSyncMutex.unlock();
 
-			zmq::multipart_t pubMsg;
-			pubMsg.addtyp(sonicValue);
-			pubMsg.addtyp(floorLeftValue);
-			pubMsg.addtyp(floorCenterValue);
-			pubMsg.addtyp(floorRightValue);
-			m_pubSubClient.PublishMessage(pubMsg);
-
+			try
+			{
+				zmq::multipart_t pubMsg;
+				pubMsg.addtyp(sonicValue);
+				pubMsg.addtyp(floorLeftValue);
+				pubMsg.addtyp(floorCenterValue);
+				pubMsg.addtyp(floorRightValue);
+				m_pubSubClient.PublishMessage(pubMsg);
+			}
+			catch (...)
+			{
+				printf("Fail to publish massage in Sensor\n");
+			}
 			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
 	}
@@ -710,23 +721,28 @@ namespace Hardware
 		while (!m_isStop)
 		{
 			start = chrono::steady_clock::now();
-
-			if (GetFrame(imageInfo))
+			try
 			{
-				cv::Mat &img = imageInfo.Image;
-				
-				// vector<uchar> img_encoded;
-				// cv::imencode(encodeType, img, img_encoded, encodeParas);
+				if (GetFrame(imageInfo))
+				{
+					cv::Mat &img = imageInfo.Image;
 
-				zmq::multipart_t msg;
-				msg.addtyp(w);
-				msg.addtyp(h);
-				msg.addtyp(ch);
-				msg.addmem(img.data, totSize);
-				// msg.addmem(img_encoded.data(), img_encoded.size());
-				m_pubSubClient.PublishMessage(msg);
+					// vector<uchar> img_encoded;
+					// cv::imencode(encodeType, img, img_encoded, encodeParas);
+
+					zmq::multipart_t msg;
+					msg.addtyp(w);
+					msg.addtyp(h);
+					msg.addtyp(ch);
+					msg.addmem(img.data, totSize);
+					// msg.addmem(img_encoded.data(), img_encoded.size());
+					m_pubSubClient.PublishMessage(msg);
+				}
 			}
-
+			catch (...)
+			{
+				printf("Fail to publish massage in CameraSensor\n");
+			}
 			this_thread::sleep_for(CAMERA_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
 	}
