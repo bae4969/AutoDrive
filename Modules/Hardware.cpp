@@ -172,7 +172,7 @@ namespace Hardware
 			{
 				zmq::multipart_t msg;
 				if (!m_pubSubClient.SubscribeMessage(msg) || msg.size() < 4)
-					throw std::exception();
+					continue;
 
 				string topic = msg.popstr();
 				string cmd = msg.popstr();
@@ -424,7 +424,7 @@ namespace Hardware
 			{
 				zmq::multipart_t msg;
 				if (!m_pubSubClient.SubscribeMessage(msg) || msg.size() < 4)
-					throw std::exception();
+					continue;
 
 				string topic = msg.popstr();
 				string cmd = msg.popstr();
