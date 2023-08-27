@@ -81,7 +81,7 @@ namespace PiCar
 		float defaultSteerAngle = 0.0f;
 		float defaultPitchAngle = 0.0f;
 		float defaultYawAngle = 0.0f;
-		FILE *file_r = fopen("CailData.data", "r");
+		FILE *file_r = fopen("CaliData.data", "r");
 		if (file_r)
 		{
 			fscanf(file_r, "STEER:%f\n", &defaultSteerAngle);
@@ -91,7 +91,7 @@ namespace PiCar
 		}
 		else
 		{
-			FILE *file_w = fopen("CailData.data", "w");
+			FILE *file_w = fopen("CaliData.data", "w");
 			if (file_w)
 			{
 				fprintf(file_w, "STEER:0.0\n");

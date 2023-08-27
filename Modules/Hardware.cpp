@@ -1,6 +1,7 @@
 #include "Hardware.h"
 #include <iostream>
 #include <math.h>
+#include <boost/shared_ptr.hpp>
 
 #define REAR_MIN_VALUE -2000
 #define REAR_MAX_VALUE 2000
@@ -15,8 +16,8 @@ using namespace std;
 
 namespace Hardware
 {
-	const std::chrono::milliseconds MOTION_DALTA_DUATION = std::chrono::milliseconds(33);
-	const std::chrono::milliseconds CAMERA_DALTA_DUATION = std::chrono::milliseconds(50);
+	static const chrono::milliseconds MOTION_DALTA_DUATION = chrono::milliseconds(33);
+	static const chrono::milliseconds CAMERA_DALTA_DUATION = chrono::milliseconds(33);
 
 	bool MoveMotor::Init(float defaultSteerAngle)
 	{
@@ -698,52 +699,102 @@ namespace Hardware
 		m_pubThread.join();
 	}
 
+	void CameraSensor::pubRawEncodedImage()
+	{
+		try
+		{
+			Camera::ImageInfo imageInfo;
+			if (!GetFrame(imageInfo))
+				return;
+
+			int w = imageInfo.Image.cols;
+			int h = imageInfo.Image.rows;
+			int ch = imageInfo.Image.channels();
+
+			zmq::multipart_t msg;
+			msg.addtyp(w);
+			msg.addtyp(h);
+			msg.addtyp(ch);
+			msg.addmem(imageInfo.Image.data, w * h * ch);
+			m_pubSubClient.PublishMessage(msg);
+		}
+		catch (...)
+		{
+			printf("Fail to publish massage in CameraSensor\n");
+		}
+	}
+	void CameraSensor::pubJpgEncodedImage()
+	{
+		try
+		{
+			Camera::ImageInfo imageInfo;
+			if (!GetFrame(imageInfo))
+				return;
+
+			vector<int> encodeParas;
+			encodeParas.push_back(cv::IMWRITE_JPEG_QUALITY);
+			encodeParas.push_back(90); // 0...100 (higher is better)
+
+			vector<uchar> img_encoded;
+			cv::imencode(".jpg", imageInfo.Image, img_encoded, encodeParas);
+
+			zmq::multipart_t msg;
+			msg.addmem(img_encoded.data(), img_encoded.size());
+			m_pubSubClient.PublishMessage(msg);
+		}
+		catch (...)
+		{
+			printf("Fail to publish massage in CameraSensor\n");
+		}
+	}
+	void CameraSensor::pubPngEncodedImage()
+	{
+		try
+		{
+			Camera::ImageInfo imageInfo;
+			if (!GetFrame(imageInfo))
+				return;
+
+			vector<int> encodeParas;
+			encodeParas.push_back(cv::IMWRITE_PNG_COMPRESSION);
+			encodeParas.push_back(1); // 0~7
+
+			vector<uchar> img_encoded;
+			cv::imencode(".png", imageInfo.Image, img_encoded, encodeParas);
+
+			zmq::multipart_t msg;
+			msg.addmem(img_encoded.data(), img_encoded.size());
+			m_pubSubClient.PublishMessage(msg);
+		}
+		catch (...)
+		{
+			printf("Fail to publish massage in CameraSensor\n");
+		}
+	}
 	void CameraSensor::pubThreadFunc()
 	{
 		chrono::steady_clock::time_point start;
-		Camera::ImageInfo imageInfo;
-		cv::Size imgSize = GetSize();
-		int w = imgSize.width;
-		int h = imgSize.height;
-		int ch = 3;
-		size_t totSize = imgSize.area() * 3;
-
-		// string encodeType = ".png";
-		// vector<int> encodeParas;
-		// encodeParas.push_back(cv::IMWRITE_PNG_COMPRESSION);
-		// encodeParas.push_back(1);	// 0~7
-
-		// string encodeType = ".png";
-		// vector<int> encodeParas;
-		// encodeParas.push_back(cv::IMWRITE_JPEG_QUALITY);
-		// encodeParas.push_back(90);     // 0...100 (higher is better)
+		vector<shared_ptr<thread>> threadPool(3, NULL);
+		int threadIdx = -1;
 
 		while (!m_isStop)
 		{
 			start = chrono::steady_clock::now();
-			try
-			{
-				if (GetFrame(imageInfo))
-				{
-					cv::Mat &img = imageInfo.Image;
 
-					// vector<uchar> img_encoded;
-					// cv::imencode(encodeType, img, img_encoded, encodeParas);
+			threadIdx++;
+			if (threadIdx > 2)
+				threadIdx = 0;
 
-					zmq::multipart_t msg;
-					msg.addtyp(w);
-					msg.addtyp(h);
-					msg.addtyp(ch);
-					msg.addmem(img.data, totSize);
-					// msg.addmem(img_encoded.data(), img_encoded.size());
-					m_pubSubClient.PublishMessage(msg);
-				}
-			}
-			catch (...)
-			{
-				printf("Fail to publish massage in CameraSensor\n");
-			}
+			if (threadPool[threadIdx])
+				threadPool[threadIdx]->join();
+
+			threadPool[threadIdx] = make_shared<thread>(&CameraSensor::pubJpgEncodedImage, this);
+
 			this_thread::sleep_for(CAMERA_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
+
+		for (int i = 0; i < threadPool.size(); i++)
+			if (threadPool[i])
+				threadPool[i]->join();
 	}
 }

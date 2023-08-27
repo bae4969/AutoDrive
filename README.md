@@ -24,6 +24,10 @@
 	So client(raspi) needs to transmit data as quickly as possible to control server.
 	It seems like sending raw data looks good, not encoded data, becuase of poor processor.
 	However, larger images and faster FPS seem to make network bandwidth issues.
+	
+	230828
+	- change to encoding jpg
+
 
 # Libraries
 	1. opencv4

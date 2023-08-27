@@ -14,6 +14,7 @@
 namespace Hardware
 {
 	typedef unsigned short ushort;
+	typedef unsigned char uchar;
 
 	class MoveMotor
 	{
@@ -130,6 +131,9 @@ namespace Hardware
 		std::atomic<bool> m_isStop;
 		std::thread m_pubThread;
 
+		void pubRawEncodedImage();
+		void pubJpgEncodedImage();
+		void pubPngEncodedImage();
 		void pubThreadFunc();
 
 	public:
