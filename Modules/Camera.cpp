@@ -32,6 +32,17 @@ namespace Camera
 		m_rasCam.set(CAP_PROP_FRAME_WIDTH, m_imageSize.width);
 		m_rasCam.set(CAP_PROP_FRAME_HEIGHT, m_imageSize.height);
 		m_rasCam.set(CAP_PROP_FPS, m_frameRate);
+		m_rasCam.set(CAP_PROP_EXPOSURE, 8);
+		m_rasCam.set(CAP_PROP_GAIN, 100);
+
+		// cv::CAP_PROP_CONTRAST: [0,100]
+		// cv::CAP_PROP_SATURATION: [0,100]
+		// cv::CAP_PROP_GAIN: (iso): [0,100]
+		// cv::CAP_PROP_EXPOSURE: -1 auto. [1,100] shutter speed from 0 to 33ms
+		// cv::CAP_PROP_WHITE_BALANCE_RED_V : [1,100] -1 auto whitebalance
+		// cv::CAP_PROP_WHITE_BALANCE_BLUE_U : [1,100] -1 auto whitebalance
+		// cv::CAP_PROP_MODE : [1,7] 0 auto mode
+
 		for (auto &t_buf : m_frameBuffer)
 			t_buf.IsSet = false;
 
