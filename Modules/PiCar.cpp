@@ -6,35 +6,35 @@
 #include <math.h>
 #include <chrono>
 
-using namespace std;
-using namespace cv;
-
 #define DEGREE_TO_RADIAN(deg) deg * 0.0174532925199432957692369076849
 #define RADIAN_TO_DEGREE(rad) rad * 57.295779513082320876798154814105
 
 namespace PiCar
 {
+	using namespace std;
+	using namespace cv;
+
 	bool PiCar::Init(PICAR_MODE mode)
 	{
 		m_curMode = PICAR_MODE_NOT_SET;
 		switch (mode)
 		{
 		case PICAR_MODE_DIRECT:
-			if (!initHardware() || !initCamera())
+			if (!initCar() || !initLcd() || !initCamera())
 			{
 				printf("Fail to init direct mode\n");
 				return false;
 			}
 			break;
 		case PICAR_MODE_REMOTE:
-			if (!initHardware() || !initCamera() || !initRemote())
+			if (!initCar() || !initLcd() || !initCamera() || !initRemote())
 			{
 				printf("Fail to init remote mode\n");
 				return false;
 			}
 			break;
 		case PICAR_MODE_CAMERA:
-			if (!initCamera() || !initRemote())
+			if (!initLcd() || !initCamera() || !initRemote())
 			{
 				printf("Fail to init camera mode\n");
 				return false;
@@ -76,7 +76,7 @@ namespace PiCar
 			break;
 		}
 	}
-	bool PiCar::initHardware()
+	bool PiCar::initCar()
 	{
 		float defaultSteerAngle = 0.0f;
 		float defaultPitchAngle = 0.0f;
@@ -101,9 +101,9 @@ namespace PiCar
 			}
 		}
 
-		if (!Protocol::InitProtocol())
+		if (!Protocol::InitCarProtocol())
 		{
-			printf("Fail to init protocol\n");
+			printf("Fail to init CAR protocol\n");
 			return false;
 		}
 		if (!m_moveMotor.Init(defaultSteerAngle))
@@ -121,6 +121,21 @@ namespace PiCar
 			printf("Fail to init sensors\n");
 			return false;
 		}
+
+		return true;
+	}
+	bool PiCar::initLcd()
+	{
+		if (!m_display.Init())
+		{
+			printf("Fail to init LCD protocol\n");
+			return false;
+		}
+
+		Size size = m_display.GetImageSize();
+		Mat temp = Mat::zeros(size, CV_8U);
+		putText(temp, "test", Point(0,16), HersheyFonts::FONT_HERSHEY_SIMPLEX, 1, 1);
+		m_display.SetImage(temp);
 
 		return true;
 	}

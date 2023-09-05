@@ -25,6 +25,7 @@ PICAR_MODE m_curMode = PICAR_MODE_NOT_SET;
 		Hardware::MoveMotor m_moveMotor;
 		Hardware::CameraMotor m_cameraMotor;
 		Hardware::Sensors m_sensors;
+		Hardware::LcdDisplay m_display;
 		Hardware::CameraSensor m_cameraSensor;
 
 		const std::chrono::milliseconds DALTA_DUATION = std::chrono::milliseconds(33);
@@ -43,7 +44,8 @@ PICAR_MODE m_curMode = PICAR_MODE_NOT_SET;
 		void subThreadFunc();
 		void pubThreadFunc();
 
-		bool initHardware();
+		bool initCar();
+		bool initLcd();
 		bool initRemote();
 		bool initCamera();
 

@@ -6,16 +6,19 @@
 #include <math.h>
 #include <mutex>
 
-using namespace std;
-
 namespace Protocol
 {
+	using namespace std;
+	using namespace cv;
+
 	static bool IsSetGPIO = false;
-	static int I2C_FD = -1;
-	const int I2C_ADDRESS = 0x14;
+	static int CAR_I2C_FD = -1;
+	static int LCD_I2C_FD = -1;
+	const int CAR_I2C_ADDRESS = 0x14;
+	const int LCD_I2C_ADDRESS = 0x3C;
 	static mutex i2cWriteMutex;
 
-	bool InitProtocol()
+	bool InitCarProtocol()
 	{
 		IsSetGPIO = wiringPiSetup() == 0;
 		if (!IsSetGPIO)
@@ -31,16 +34,16 @@ namespace Protocol
 		rstMCU.SetOutput(true);
 		this_thread::sleep_for(chrono::milliseconds(300));
 
-		I2C_FD = wiringPiI2CSetupInterface("/dev/i2c-1", I2C_ADDRESS);
-		if (I2C_FD < 0)
+		CAR_I2C_FD = wiringPiI2CSetupInterface("/dev/i2c-1", CAR_I2C_ADDRESS);
+		if (CAR_I2C_FD < 0)
 		{
-			printf("Fail to init I2C\n");
+			printf("Fail to init CAR I2C FD\n");
 			return false;
 		}
 
-		if (wiringPiI2CWrite(I2C_FD, 0x2C) < 0)
+		if (wiringPiI2CWrite(CAR_I2C_FD, 0x2C) < 0)
 		{
-			printf("Fail to init I2C again\n");
+			printf("Fail to init CAR I2C\n");
 			return false;
 		}
 
@@ -125,24 +128,136 @@ namespace Protocol
 		return m_isHigh;
 	}
 
-	I2C::I2C()
+	LCD_I2C::LCD_I2C()
+	{
+		m_isInit = false;
+		m_width = 128;
+		m_height = 32;
+		m_page = 8;
+		m_line = 4;
+		m_img8 = Mat::zeros(m_height, m_width, CV_8U);
+	}
+	LCD_I2C::~LCD_I2C()
+	{
+		if (!m_isInit)
+			return;
+
+		wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0xAE); // SSD1306_DISPLAY_OFF
+	}
+	bool LCD_I2C::Init()
+	{
+		LCD_I2C_FD = wiringPiI2CSetupInterface("/dev/i2c-1", LCD_I2C_ADDRESS);
+		if (LCD_I2C_FD < 0)
+		{
+			printf("Fail to init LCD I2C FD\n");
+			return false;
+		}
+
+		// wiringPiI2CWrite
+		if (wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0xAE) < 0 ||		   // SSD1306_DISPLAY_OFF
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0xD5) < 0 ||		   // SSD1306_SET_DISPLAY_CLOCK_DIV_RATIO
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x80) < 0 ||		   // 0x80
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0xA8) < 0 ||		   // SSD1306_SET_MULTIPLEX_RATIO
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x1F) < 0 ||		   // 0x1F
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0xD3) < 0 ||		   // SSD1306_SET_DISPLAY_OFFSET
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x00) < 0 ||		   // 0x00
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x40) < 0 ||		   // SSD1306_SET_START_LINE
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x8D) < 0 ||		   // SSD1306_CHARGE_PUMP
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x14) < 0 ||		   // 0x14
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x20) < 0 ||		   // SSD1306_MEMORY_ADDR_MODE
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x00) < 0 ||		   // 0x00
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0xA0 | 0x01) < 0 || // SSD1306_SET_SEGMENT_REMAP
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0xC8) < 0 ||		   // SSD1306_COM_SCAN_DIR_DEC
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0xDA) < 0 ||		   // SSD1306_SET_COM_PINS
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x02) < 0 ||		   // 0x02
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x81) < 0 ||		   // SSD1306_SET_CONTRAST_CONTROL
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x8F) < 0 ||		   // 0x8F
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0xD9) < 0 ||		   // SSD1306_SET_PRECHARGE_PERIOD
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0xF1) < 0 ||		   // 0xF1
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0xDB) < 0 ||		   // SSD1306_SET_VCOM_DESELECT
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x40) < 0 ||		   // 0x40
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0xA4) < 0 ||		   // SSD1306_DISPLAY_ALL_ON_RESUME
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0xA6) < 0 ||		   // SSD1306_NORMAL_DISPLAY
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x2E) < 0 ||		   // SSD1306_DEACTIVATE_SCROLL
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0xAF) < 0)		   // SSD1306_DISPLAY_ON
+		{
+			printf("Fail to init LCD I2C\n");
+			return false;
+		}
+
+		m_isInit = true;
+
+		return true;
+	}
+	bool LCD_I2C::Reset()
+	{
+		return SetImage(Mat::zeros(m_height, m_width, CV_8U));
+	}
+	bool LCD_I2C::SetImage(Mat img8)
+	{
+		if (m_img8.cols != img8.cols ||
+			m_img8.rows != img8.rows ||
+			m_img8.cols != img8.cols ||
+			m_img8.cols != img8.cols)
+		{
+			printf("Image data type is not same in LCD I2C\n");
+			return false;
+		}
+
+		memcpy(m_img8.data, img8.data, m_width * m_height);
+
+		char totData;
+		char data[8];
+		char *imgPtr = (char *)m_img8.data;
+		for (int lineIdx = 0; lineIdx < 4; lineIdx++)
+			for (int x = 0; x < m_width; x++)
+			{
+				data[0] = (imgPtr[(lineIdx * 8 + 0) * m_width + x] > 0) << 0;
+				data[1] = (imgPtr[(lineIdx * 8 + 1) * m_width + x] > 0) << 1;
+				data[2] = (imgPtr[(lineIdx * 8 + 2) * m_width + x] > 0) << 2;
+				data[3] = (imgPtr[(lineIdx * 8 + 3) * m_width + x] > 0) << 3;
+				data[4] = (imgPtr[(lineIdx * 8 + 4) * m_width + x] > 0) << 4;
+				data[5] = (imgPtr[(lineIdx * 8 + 5) * m_width + x] > 0) << 5;
+				data[6] = (imgPtr[(lineIdx * 8 + 6) * m_width + x] > 0) << 6;
+				data[7] = (imgPtr[(lineIdx * 8 + 7) * m_width + x] > 0) << 7;
+				totData = data[0] | data[1] | data[2] | data[3] | data[4] | data[5] | data[6] | data[7];
+
+				if (wiringPiI2CWriteReg8(LCD_I2C_FD, 0x40, totData) < 0)
+				{
+					printf("Fail to write LCD I2C data\n");
+					return false;
+				}
+			}
+
+		return true;
+	}
+	Mat LCD_I2C::GetImage()
+	{
+		return m_img8.clone();
+	}
+	Size LCD_I2C::GetImageSize()
+	{
+		return Size(m_width, m_height);
+	}
+
+	CAR_I2C::CAR_I2C()
 	{
 		m_pulseWidth = 0;
 		m_frequency = 50;
 		m_prescaler = 10;
 		m_period = 4095;
 	}
-	ushort I2C::convertBig2Little(ushort val)
+	ushort CAR_I2C::convertBig2Little(ushort val)
 	{
 		ushort val_h = val >> 8;
 		ushort val_l = val & 0xff;
 		return (val_l << 8) + val_h;
 	}
-	bool I2C::Init(int channel, ushort prescaler, ushort period)
+	bool CAR_I2C::Init(int channel, ushort prescaler, ushort period)
 	{
-		if (I2C_FD < 0)
+		if (CAR_I2C_FD < 0)
 		{
-			printf("I2C FD is not setted\n");
+			printf("CAR I2C FD is not setted\n");
 			return false;
 		}
 
@@ -152,41 +267,41 @@ namespace Protocol
 			!SetPrescaler(prescaler) ||
 			!SetPeriod(period))
 		{
-			printf("Fail to init I2C %d\n", m_channel);
+			printf("Fail to init CAR I2C %d\n", m_channel);
 			return false;
 		}
 
 		return true;
 	}
-	bool I2C::SetPulseWidth(ushort value)
+	bool CAR_I2C::SetPulseWidth(ushort value)
 	{
-		if (I2C_FD < 0)
+		if (CAR_I2C_FD < 0)
 		{
-			printf("I2C FD is not setted\n");
+			printf("CAR I2C FD is not setted\n");
 			return false;
 		}
 
 		int reg = PULSE_WIDTH_REG_OFFSET + m_channel;
 		i2cWriteMutex.lock();
-		int ret = wiringPiI2CWriteReg16(I2C_FD, reg, convertBig2Little(value));
+		int ret = wiringPiI2CWriteReg16(CAR_I2C_FD, reg, convertBig2Little(value));
 		i2cWriteMutex.unlock();
 		if (ret < 0)
 		{
-			printf("Fail to write I2C %d pulse width\n", reg);
+			printf("Fail to write CAR I2C %d pulse width\n", reg);
 			return false;
 		}
 
 		m_pulseWidth = value;
 		return true;
 	}
-	bool I2C::SetFrequency(ushort value)
+	bool CAR_I2C::SetFrequency(ushort value)
 	{
 		m_frequency = value;
 		return true;
 
-		if (I2C_FD < 0)
+		if (CAR_I2C_FD < 0)
 		{
-			printf("I2C FD is not setted\n");
+			printf("CAR I2C FD is not setted\n");
 			return false;
 		}
 
@@ -226,61 +341,61 @@ namespace Protocol
 		m_frequency = value;
 		return true;
 	}
-	bool I2C::SetPrescaler(ushort value)
+	bool CAR_I2C::SetPrescaler(ushort value)
 	{
-		if (I2C_FD < 0)
+		if (CAR_I2C_FD < 0)
 		{
-			printf("I2C FD is not setted\n");
+			printf("CAR I2C FD is not setted\n");
 			return false;
 		}
 
 		int reg = PRESCALER_REG_OFFSET + m_group;
 		i2cWriteMutex.lock();
-		int ret = wiringPiI2CWriteReg16(I2C_FD, reg, convertBig2Little(value));
+		int ret = wiringPiI2CWriteReg16(CAR_I2C_FD, reg, convertBig2Little(value));
 		i2cWriteMutex.unlock();
 		if (ret < 0)
 		{
-			printf("Fail to write I2C %d prescaler\n", reg);
+			printf("Fail to write CAR I2C %d prescaler\n", reg);
 			return false;
 		}
 
 		m_prescaler = value;
 		return true;
 	}
-	bool I2C::SetPeriod(ushort value)
+	bool CAR_I2C::SetPeriod(ushort value)
 	{
-		if (I2C_FD < 0)
+		if (CAR_I2C_FD < 0)
 		{
-			printf("I2C FD is not setted\n");
+			printf("CAR I2C FD is not setted\n");
 			return false;
 		}
 
 		int reg = PERIOD_REG_OFFSET + m_group;
 		i2cWriteMutex.lock();
-		int ret = wiringPiI2CWriteReg16(I2C_FD, reg, convertBig2Little(value));
+		int ret = wiringPiI2CWriteReg16(CAR_I2C_FD, reg, convertBig2Little(value));
 		i2cWriteMutex.unlock();
 		if (ret < 0)
 		{
-			printf("Fail to write I2C %d period\n", reg);
+			printf("Fail to write CAR I2C %d period\n", reg);
 			return false;
 		}
 
 		m_period = value;
 		return true;
 	}
-	ushort I2C::GetPulseWidth()
+	ushort CAR_I2C::GetPulseWidth()
 	{
 		return m_pulseWidth;
 	}
-	ushort I2C::GetFrequency()
+	ushort CAR_I2C::GetFrequency()
 	{
 		return m_frequency;
 	}
-	ushort I2C::GetPrescaler()
+	ushort CAR_I2C::GetPrescaler()
 	{
 		return m_prescaler;
 	}
-	ushort I2C::GetPeriod()
+	ushort CAR_I2C::GetPeriod()
 	{
 		return m_period;
 	}
@@ -291,7 +406,7 @@ namespace Protocol
 	}
 	bool PWMMotor::Init(int channel)
 	{
-		return I2C::Init(channel, 9, 4095) &&
+		return CAR_I2C::Init(channel, 9, 4095) &&
 			   SetPulseWidth(0);
 	}
 	bool PWMMotor::SetValue(ushort value)
@@ -336,7 +451,7 @@ namespace Protocol
 	{
 		m_defaultDegree = defaultDegree;
 
-		if (!I2C::Init(channel, 350, 4094))
+		if (!CAR_I2C::Init(channel, 350, 4094))
 			return false;
 
 		if (!isSetZero)
@@ -360,9 +475,9 @@ namespace Protocol
 
 	bool ADC::Init(int channel)
 	{
-		if (I2C_FD < 0)
+		if (CAR_I2C_FD < 0)
 		{
-			printf("I2C FD is not setted\n");
+			printf("CAR I2C FD is not setted\n");
 			return false;
 		}
 
@@ -371,16 +486,16 @@ namespace Protocol
 	}
 	int ADC::GetValue()
 	{
-		if (I2C_FD < 0)
+		if (CAR_I2C_FD < 0)
 		{
-			printf("I2C FD is not setted\n");
+			printf("CAR I2C FD is not setted\n");
 			return -1;
 		}
 
 		i2cWriteMutex.lock();
-		int ret = wiringPiI2CWriteReg16(I2C_FD, m_channel, 0);
-		int first = wiringPiI2CRead(I2C_FD);
-		int second = wiringPiI2CRead(I2C_FD);
+		int ret = wiringPiI2CWriteReg16(CAR_I2C_FD, m_channel, 0);
+		int first = wiringPiI2CRead(CAR_I2C_FD);
+		int second = wiringPiI2CRead(CAR_I2C_FD);
 		i2cWriteMutex.unlock();
 
 		bool isGood = ret >= 0 || first >= 0 || second >= 0;

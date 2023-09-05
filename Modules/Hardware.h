@@ -123,6 +123,9 @@ namespace Hardware
 		int GetFloorCenterValue();
 		int GetFloorRightValue();
 	};
+	class LcdDisplay : public Protocol::LCD_I2C
+	{
+	};
 	class CameraSensor : public Camera::DirectCamera
 	{
 	private:

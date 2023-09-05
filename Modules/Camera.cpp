@@ -3,11 +3,11 @@
 #include <iostream>
 #include <chrono>
 
-using namespace std;
-using namespace cv;
-
 namespace Camera
 {
+	using namespace std;
+	using namespace cv;
+	
 	DirectCamera::DirectCamera()
 	{
 		m_threadStop = true;
@@ -68,7 +68,8 @@ namespace Camera
 			if (nextBufIdx >= m_bufferSize)
 				nextBufIdx = 0;
 
-			if (!m_rasCam.grab()){
+			if (!m_rasCam.grab())
+			{
 				printf("Fail to grab image\n");
 				continue;
 			}

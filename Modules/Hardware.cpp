@@ -12,10 +12,10 @@
 #define CAMERA_YAW_MIN_DEGREE -60
 #define CAMERA_YAW_MAX_DEGREE 60
 
-using namespace std;
-
 namespace Hardware
 {
+	using namespace std;
+
 	static const chrono::milliseconds MOTION_DALTA_DUATION = chrono::milliseconds(33);
 	static const chrono::milliseconds CAMERA_DALTA_DUATION = chrono::milliseconds(33);
 
@@ -31,17 +31,17 @@ namespace Hardware
 			printf("Fail to init rear right direction GPIO\n");
 			return false;
 		}
-		if (!m_leftMotor.Init(Protocol::I2C_CHANNEL_REAR_LEFT))
+		if (!m_leftMotor.Init(Protocol::CAR_I2C_CHANNEL_REAR_LEFT))
 		{
 			printf("Fail to init rear left PWM motor\n");
 			return false;
 		}
-		if (!m_rightMotor.Init(Protocol::I2C_CHANNEL_REAR_RIGHT))
+		if (!m_rightMotor.Init(Protocol::CAR_I2C_CHANNEL_REAR_RIGHT))
 		{
 			printf("Fail to init rear right PWM motor\n");
 			return false;
 		}
-		if (!m_steerMotor.Init(Protocol::I2C_CHANNEL_FRONT_STEER, defaultSteerAngle))
+		if (!m_steerMotor.Init(Protocol::CAR_I2C_CHANNEL_FRONT_STEER, defaultSteerAngle))
 		{
 			printf("Fail to init steer PWM motor\n");
 			return false;
@@ -296,12 +296,12 @@ namespace Hardware
 
 	bool CameraMotor::Init(float defaultPitchDegree, float defaultYawDegree)
 	{
-		if (!m_pitchMotor.Init(Protocol::I2C_CHANNEL_CAMERA_TILT, -defaultPitchDegree))
+		if (!m_pitchMotor.Init(Protocol::CAR_I2C_CHANNEL_CAMERA_TILT, -defaultPitchDegree))
 		{
 			printf("Fail to init steer PWM motor\n");
 			return false;
 		}
-		if (!m_yawMotor.Init(Protocol::I2C_CHANNEL_CAMERA_YAW, -defaultYawDegree))
+		if (!m_yawMotor.Init(Protocol::CAR_I2C_CHANNEL_CAMERA_YAW, -defaultYawDegree))
 		{
 			printf("Fail to init steer PWM motor\n");
 			return false;

@@ -1,6 +1,7 @@
 #pragma once
 #include <zmq.hpp>
 #include <zmq_addon.hpp>
+#include <opencv2/core.hpp>
 #include <chrono>
 #include <atomic>
 #include <thread>
@@ -19,16 +20,16 @@ namespace Protocol
 		GPIO_PIN_SWITCH = 24,
 		GPIO_PIN_LED = 25,
 	};
-	enum I2C_CHANNEL
+	enum CAR_I2C_CHANNEL
 	{
-		I2C_CHANNEL_CAMERA_YAW = 0,
-		I2C_CHANNEL_CAMERA_TILT = 1,
-		I2C_CHANNEL_FRONT_STEER = 2,
-		I2C_CHANNEL_REAR_LEFT = 13,
-		I2C_CHANNEL_REAR_RIGHT = 12,
+		CAR_I2C_CHANNEL_CAMERA_YAW = 0,
+		CAR_I2C_CHANNEL_CAMERA_TILT = 1,
+		CAR_I2C_CHANNEL_FRONT_STEER = 2,
+		CAR_I2C_CHANNEL_REAR_LEFT = 13,
+		CAR_I2C_CHANNEL_REAR_RIGHT = 12,
 	};
 
-	bool InitProtocol();
+	bool InitCarProtocol();
 
 	class GPIO
 	{
@@ -45,7 +46,7 @@ namespace Protocol
 		int GetInput();
 	};
 
-	class I2C
+	class CAR_I2C
 	{
 	private:
 		const int PULSE_WIDTH_REG_OFFSET = 0x20;
@@ -63,7 +64,7 @@ namespace Protocol
 		ushort convertBig2Little(ushort value);
 
 	public:
-		I2C();
+		CAR_I2C();
 		bool Init(int channel, ushort prescaler, ushort period);
 		bool SetPulseWidth(ushort value);
 		bool SetFrequency(ushort value);
@@ -75,7 +76,27 @@ namespace Protocol
 		ushort GetPeriod();
 	};
 
-	class PWMMotor : public I2C
+	class LCD_I2C
+	{
+		bool m_isInit;
+		int m_width;
+		int m_height;
+		int m_page;
+		int m_line;
+		cv::Mat m_img8;
+
+	public:
+		LCD_I2C();
+		~LCD_I2C();
+
+		bool Init();
+		bool Reset();
+		bool SetImage(cv::Mat img8);
+		cv::Mat GetImage();
+		cv::Size GetImageSize();
+	};
+
+	class PWMMotor : public CAR_I2C
 	{
 	private:
 		std::atomic<ushort> m_curValue;
@@ -87,7 +108,7 @@ namespace Protocol
 		ushort GetValue();
 	};
 
-	class ServoMotor : public I2C
+	class ServoMotor : public CAR_I2C
 	{
 	private:
 		float m_defaultDegree;
