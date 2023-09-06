@@ -95,6 +95,8 @@ namespace Hardware
 	{
 	private:
 		Protocol::PubSubClient m_pubSubClient;
+		Protocol::GPIO m_led;
+		Protocol::GPIO m_switch;
 		Protocol::GPIO m_tring;
 		Protocol::GPIO m_echo;
 		Protocol::ADC m_left;
@@ -127,6 +129,10 @@ namespace Hardware
 	{
 	private:
 		Protocol::PubSubClient m_pubSubClient;
+		Protocol::GPIO m_ledFrontLeft;
+		Protocol::GPIO m_ledFrontRight;
+		Protocol::GPIO m_ledBackLeft;
+		Protocol::GPIO m_ledBackRight;
 
 		std::atomic<bool> m_isStop;
 		float m_cpuTemp;

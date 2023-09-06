@@ -537,7 +537,9 @@ namespace Hardware
 
 	bool Sensors::Init()
 	{
-		if (!m_tring.Init(Protocol::GPIO_PIN_SONIC_TRING, true) ||
+		if (!m_led.Init(Protocol::GPIO_PIN_CAR_LED, true) ||
+			!m_switch.Init(Protocol::GPIO_PIN_SWITCH, false) ||
+			!m_tring.Init(Protocol::GPIO_PIN_SONIC_TRING, true) ||
 			!m_echo.Init(Protocol::GPIO_PIN_SONIC_ECHO, false))
 		{
 			printf("Fail to init sonic sensor GPIO\n");
@@ -552,6 +554,7 @@ namespace Hardware
 		}
 
 		m_isStop = false;
+		m_led.SetOutput(true);
 		m_sonicDistance = -1.0;
 		m_floorLeftValue = 0;
 		m_floorCenterValue = 0;
@@ -601,6 +604,7 @@ namespace Hardware
 		}
 		auto duration = (pulseEnd - pulseStart);
 		m_sonicDistance = duration.count() * 0.00016575; // mm
+		m_led.SetOutput(m_sonicDistance < 50.0);
 	}
 	void Sensors::updateFloorSensor()
 	{
@@ -680,12 +684,25 @@ namespace Hardware
 
 	bool LcdDisplay::Init()
 	{
+		if (!m_ledFrontLeft.Init(Protocol::GPIO_PIN_LCD_LED_FRONT_LEFT, true) ||
+			!m_ledFrontRight.Init(Protocol::GPIO_PIN_LCD_LED_FRONT_RIGHT, true) ||
+			// !m_ledBackLeft.Init(Protocol::GPIO_PIN_LCD_LED_BACK_LEFT, true) ||	// Do not use when using picar
+			!m_ledBackRight.Init(Protocol::GPIO_PIN_LCD_LED_BACK_RIGHT, true))
+		{
+			printf("Fail to init LCD LED GPIO\n");
+			return false;
+		}
 		if (!Protocol::LCD_I2C::Init())
 		{
 			printf("Fail to init LCD Display\n");
 			return false;
 		}
+
 		m_isStop = false;
+		m_ledFrontLeft.SetOutput(false);
+		m_ledFrontRight.SetOutput(false);
+		// m_ledBackLeft.SetOutput(false);		// Do not use when using picar
+		m_ledBackRight.SetOutput(false);
 		m_cpuTemp = 0.f;
 		m_throttleState = 0;
 		m_updateThread = thread(&LcdDisplay::updateThreadFunc, this);
@@ -760,6 +777,9 @@ namespace Hardware
 				m_cpuTemp = temp;
 			if (thro >= 0)
 				m_throttleState = thro;
+
+			m_ledFrontLeft.SetOutput(temp > 60.f);
+			m_ledFrontRight.SetOutput(m_throttleState & 0x12);
 			sprintf(tempStrBuf, "Temp : %.01f", m_cpuTemp);
 			sprintf(throStrBuf, "State : %X", m_throttleState);
 			m_syncMutex.unlock();
