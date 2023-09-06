@@ -160,7 +160,7 @@ namespace Protocol
 			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x1F) < 0 ||		   // 0x1F
 			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0xD3) < 0 ||		   // SSD1306_SET_DISPLAY_OFFSET
 			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x00) < 0 ||		   // 0x00
-			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x40 | 0x00) < 0 ||	  // SSD1306_SET_START_LINE
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x40 | 0x00) < 0 || // SSD1306_SET_START_LINE
 			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x8D) < 0 ||		   // SSD1306_CHARGE_PUMP
 			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x14) < 0 ||		   // 0x14
 			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x20) < 0 ||		   // SSD1306_MEMORY_ADDR_MODE
@@ -204,6 +204,16 @@ namespace Protocol
 		}
 
 		memcpy(m_img8.data, img8.data, m_width * m_height);
+		if (wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x21) < 0 || // SSD1306_COLUMNADDR
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x00) < 0 || // Column start address. (0 = reset)
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x7F) < 0 || // Column end address
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x22) < 0 || // SSD1306_PAGEADDR
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x00) < 0 || // Page start address
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x03) < 0)	// Page end address
+		{
+			printf("Fail to reset LCD I2C\n");
+			return false;
+		}
 
 		char totData;
 		char data[8];
