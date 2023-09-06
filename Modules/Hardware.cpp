@@ -1,4 +1,5 @@
 #include "Hardware.h"
+#include <opencv2/opencv.hpp>
 #include <iostream>
 #include <math.h>
 #include <boost/shared_ptr.hpp>
@@ -15,6 +16,7 @@
 namespace Hardware
 {
 	using namespace std;
+	using namespace cv;
 
 	static const chrono::milliseconds MOTION_DALTA_DUATION = chrono::milliseconds(33);
 	static const chrono::milliseconds CAMERA_DALTA_DUATION = chrono::milliseconds(33);
@@ -674,6 +676,126 @@ namespace Hardware
 	int Sensors::GetFloorRightValue()
 	{
 		return m_floorRightValue;
+	}
+
+	bool LcdDisplay::Init()
+	{
+		if (!Protocol::LCD_I2C::Init())
+		{
+			printf("Fail to init LCD Display\n");
+			return false;
+		}
+		m_isStop = false;
+		m_cpuTemp = 0.f;
+		m_throttleState = 0;
+		m_updateThread = thread(&LcdDisplay::updateThreadFunc, this);
+
+		if (!m_pubSubClient.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
+		{
+			printf("Fail to init ZMQ for LCD\n");
+			return false;
+		}
+		m_pubSubClient.ChangePubTopic("STATE_LCD_DISPLAY");
+		m_pubThread = thread(&LcdDisplay::pubThreadFunc, this);
+
+		return true;
+	}
+	void LcdDisplay::Release()
+	{
+		m_isStop = true;
+		m_updateThread.join();
+		m_pubThread.join();
+	}
+
+	void LcdDisplay::updateThreadFunc()
+	{
+		chrono::steady_clock::time_point start;
+		Mat displayImg = Mat::zeros(GetImageSize(), CV_8U);
+		char tempStrBuf[512];
+		char throStrBuf[512];
+
+		while (!m_isStop)
+		{
+			start = chrono::steady_clock::now();
+			displayImg.setTo(0);
+
+			float temp = -1.f;
+			int thro = -1;
+
+			FILE *tempFile = popen("vcgencmd measure_temp", "r");
+			FILE *throFile = popen("vcgencmd get_throttled", "r");
+			if (tempFile)
+			{
+				string tempStr = "";
+				while (fgets(tempStrBuf, 512, tempFile) != NULL)
+					tempStr += tempStrBuf;
+				pclose(tempFile);
+
+				try
+				{
+					sscanf(tempStr.c_str(), "temp=%f\'C", &temp);
+				}
+				catch (...)
+				{
+				}
+			}
+			if (throFile)
+			{
+				string tempStr = "";
+				while (fgets(throStrBuf, 512, throFile) != NULL)
+					tempStr += throStrBuf;
+				pclose(throFile);
+
+				try
+				{
+					sscanf(tempStr.c_str(), "throttled=%x", &thro);
+				}
+				catch (...)
+				{
+				}
+			}
+
+			m_syncMutex.lock();
+			if (temp > 0.f)
+				m_cpuTemp = temp;
+			if (thro >= 0)
+				m_throttleState = thro;
+			sprintf(tempStrBuf, "Temp : %.01f", m_cpuTemp);
+			sprintf(throStrBuf, "State : %X", m_throttleState);
+			m_syncMutex.unlock();
+
+			putText(displayImg, throStrBuf, Point(0, 14), FONT_HERSHEY_DUPLEX, 0.4, 1);
+			putText(displayImg, tempStrBuf, Point(0, 30), FONT_HERSHEY_DUPLEX, 0.4, 1);
+
+			SetImage(displayImg);
+
+			this_thread::sleep_for(1000ms - (chrono::steady_clock::now() - start));
+		}
+	}
+	void LcdDisplay::pubThreadFunc()
+	{
+		chrono::steady_clock::time_point start;
+
+		while (!m_isStop)
+		{
+			start = chrono::steady_clock::now();
+			m_syncMutex.lock();
+
+			m_syncMutex.unlock();
+
+			try
+			{
+				zmq::multipart_t pubMsg;
+				pubMsg.addtyp(m_cpuTemp);
+				pubMsg.addtyp(m_throttleState);
+				m_pubSubClient.PublishMessage(pubMsg);
+			}
+			catch (...)
+			{
+				printf("Fail to publish massage in LCD\n");
+			}
+			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
+		}
 	}
 
 	bool CameraSensor::Init(int w, int h, int bufSize, int frameRate)

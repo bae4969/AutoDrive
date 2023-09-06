@@ -125,6 +125,22 @@ namespace Hardware
 	};
 	class LcdDisplay : public Protocol::LCD_I2C
 	{
+	private:
+		Protocol::PubSubClient m_pubSubClient;
+
+		std::atomic<bool> m_isStop;
+		float m_cpuTemp;
+		int m_throttleState;
+		std::mutex m_syncMutex;
+		std::thread m_updateThread;
+		std::thread m_pubThread;
+
+		void updateThreadFunc();
+		void pubThreadFunc();
+
+	public:
+		bool Init();
+		void Release();
 	};
 	class CameraSensor : public Camera::DirectCamera
 	{

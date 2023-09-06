@@ -57,17 +57,20 @@ namespace PiCar
 			m_moveMotor.Release();
 			m_cameraMotor.Release();
 			m_sensors.Release();
+			m_display.Release();
 			m_cameraSensor.Release();
 			break;
 		case PICAR_MODE_REMOTE:
 			m_moveMotor.Release();
 			m_cameraMotor.Release();
 			m_sensors.Release();
+			m_display.Release();
 			m_cameraSensor.Release();
 			m_subThread.join();
 			m_pubThread.join();
 			break;
 		case PICAR_MODE_CAMERA:
+			m_display.Release();
 			m_cameraSensor.Release();
 			m_subThread.join();
 			m_pubThread.join();
@@ -131,11 +134,6 @@ namespace PiCar
 			printf("Fail to init LCD protocol\n");
 			return false;
 		}
-
-		Size size = m_display.GetImageSize();
-		Mat temp = Mat::zeros(size, CV_8U);
-		putText(temp, "test", Point(0,16), HersheyFonts::FONT_HERSHEY_SIMPLEX, 1, 1);
-		m_display.SetImage(temp);
 
 		return true;
 	}

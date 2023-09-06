@@ -153,7 +153,6 @@ namespace Protocol
 			return false;
 		}
 
-		// wiringPiI2CWrite
 		if (wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0xAE) < 0 ||		   // SSD1306_DISPLAY_OFF
 			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0xD5) < 0 ||		   // SSD1306_SET_DISPLAY_CLOCK_DIV_RATIO
 			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x80) < 0 ||		   // 0x80
@@ -161,7 +160,7 @@ namespace Protocol
 			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x1F) < 0 ||		   // 0x1F
 			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0xD3) < 0 ||		   // SSD1306_SET_DISPLAY_OFFSET
 			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x00) < 0 ||		   // 0x00
-			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x40) < 0 ||		   // SSD1306_SET_START_LINE
+			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x40 | 0x00) < 0 ||	  // SSD1306_SET_START_LINE
 			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x8D) < 0 ||		   // SSD1306_CHARGE_PUMP
 			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x14) < 0 ||		   // 0x14
 			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x20) < 0 ||		   // SSD1306_MEMORY_ADDR_MODE
