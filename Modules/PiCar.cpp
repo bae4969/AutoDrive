@@ -17,31 +17,23 @@ namespace PiCar
 	bool PiCar::Init(PICAR_MODE mode)
 	{
 		m_curMode = PICAR_MODE_NOT_SET;
+
+		bool isGood = false;
 		switch (mode)
 		{
 		case PICAR_MODE_DIRECT:
-			if (!initCar() || !initLcd() || !initCamera())
-			{
-				printf("Fail to init direct mode\n");
-				return false;
-			}
-			break;
 		case PICAR_MODE_REMOTE:
-			if (!initCar() || !initLcd() || !initCamera() || !initRemote())
-			{
-				printf("Fail to init remote mode\n");
-				return false;
-			}
+			isGood = initBasic() && initProtocol() && initRobotHat() && initEP0152() && initCamera();
 			break;
 		case PICAR_MODE_CAMERA:
-			if (!initLcd() || !initCamera() || !initRemote())
-			{
-				printf("Fail to init camera mode\n");
-				return false;
-			}
+			isGood = initBasic() && initProtocol() && initEP0152() && initCamera();
 			break;
 		default:
-			printf("Invalid mode\n");
+			isGood = false;
+		}
+		if (!isGood)
+		{
+			printf("Fail to init picar\n");
 			return false;
 		}
 
@@ -79,7 +71,42 @@ namespace PiCar
 			break;
 		}
 	}
-	bool PiCar::initCar()
+	bool PiCar::initBasic()
+	{
+		if (!Basic::InitBasic())
+		{
+			printf("Fail to init Basic\n");
+			return false;
+		}
+
+		return true;
+	}
+	bool PiCar::initProtocol()
+	{
+		if (!Protocol::InitProtocol())
+		{
+			printf("Fail to init protocol\n");
+			return false;
+		}
+
+		vector<string> xPubConnStrs;
+		vector<string> xSubConnStrs;
+		xPubConnStrs.push_back(PROXY_XPUB_STR);
+		xPubConnStrs.push_back("tcp://*:45000");
+		xSubConnStrs.push_back(PROXY_XSUB_STR);
+		xSubConnStrs.push_back("tcp://*:45001");
+		if (!m_pubSubClient.Init(PROXY_XSUB_STR, PROXY_XPUB_STR) ||
+			!m_pubSubServer.Init(xPubConnStrs, xSubConnStrs))
+		{
+			printf("Fail to init proxy server\n");
+			return false;
+		}
+		m_pubSubClient.AddSubTopic("COMMAND_PICAR");
+		m_pubSubClient.ChangePubTopic("STATE_PICAR");
+
+		return true;
+	}
+	bool PiCar::initRobotHat()
 	{
 		float defaultSteerAngle = 0.0f;
 		float defaultPitchAngle = 0.0f;
@@ -104,9 +131,9 @@ namespace PiCar
 			}
 		}
 
-		if (!Protocol::InitCarProtocol())
+		if (!RobotHat::InitRobotHat())
 		{
-			printf("Fail to init CAR protocol\n");
+			printf("Fail to init Robot Hat\n");
 			return false;
 		}
 		if (!m_moveMotor.Init(defaultSteerAngle))
@@ -127,8 +154,14 @@ namespace PiCar
 
 		return true;
 	}
-	bool PiCar::initLcd()
+	bool PiCar::initEP0152()
 	{
+		if (!EP0152::InitEP0152())
+		{
+
+			printf("Fail to init EP0152\n");
+			return false;
+		}
 		if (!m_display.Init())
 		{
 			printf("Fail to init LCD protocol\n");
@@ -148,25 +181,6 @@ namespace PiCar
 			printf("Fail to init camera sensor module\n");
 			return false;
 		}
-
-		return true;
-	}
-	bool PiCar::initRemote()
-	{
-		vector<string> xPubConnStrs;
-		vector<string> xSubConnStrs;
-		xPubConnStrs.push_back(PROXY_XPUB_STR);
-		xPubConnStrs.push_back("tcp://*:45000");
-		xSubConnStrs.push_back(PROXY_XSUB_STR);
-		xSubConnStrs.push_back("tcp://*:45001");
-		if (!m_pubSubClient.Init(PROXY_XSUB_STR, PROXY_XPUB_STR) ||
-			!m_pubSubServer.Init(xPubConnStrs, xSubConnStrs))
-		{
-			printf("Fail to init proxy server\n");
-			return false;
-		}
-		m_pubSubClient.AddSubTopic("COMMAND_PICAR");
-		m_pubSubClient.ChangePubTopic("STATE_PICAR");
 
 		return true;
 	}

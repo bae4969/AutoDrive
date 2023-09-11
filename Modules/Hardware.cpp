@@ -23,27 +23,27 @@ namespace Hardware
 
 	bool MoveMotor::Init(float defaultSteerAngle)
 	{
-		if (!m_leftDir.Init(Protocol::GPIO_PIN_REAR_LEFT_DIRECTION, true))
+		if (!m_leftDir.Init(Basic::GPIO_PIN_REAR_LEFT_DIRECTION, true))
 		{
 			printf("Fail to init rear left direction GPIO\n");
 			return false;
 		}
-		if (!m_rightDir.Init(Protocol::GPIO_PIN_REAR_RIGHT_DIRECTION, true))
+		if (!m_rightDir.Init(Basic::GPIO_PIN_REAR_RIGHT_DIRECTION, true))
 		{
 			printf("Fail to init rear right direction GPIO\n");
 			return false;
 		}
-		if (!m_leftMotor.Init(Protocol::CAR_I2C_CHANNEL_REAR_LEFT))
+		if (!m_leftMotor.Init(RobotHat::CAR_I2C_CHANNEL_REAR_LEFT))
 		{
 			printf("Fail to init rear left PWM motor\n");
 			return false;
 		}
-		if (!m_rightMotor.Init(Protocol::CAR_I2C_CHANNEL_REAR_RIGHT))
+		if (!m_rightMotor.Init(RobotHat::CAR_I2C_CHANNEL_REAR_RIGHT))
 		{
 			printf("Fail to init rear right PWM motor\n");
 			return false;
 		}
-		if (!m_steerMotor.Init(Protocol::CAR_I2C_CHANNEL_FRONT_STEER, defaultSteerAngle))
+		if (!m_steerMotor.Init(RobotHat::CAR_I2C_CHANNEL_FRONT_STEER, defaultSteerAngle))
 		{
 			printf("Fail to init steer PWM motor\n");
 			return false;
@@ -298,12 +298,12 @@ namespace Hardware
 
 	bool CameraMotor::Init(float defaultPitchDegree, float defaultYawDegree)
 	{
-		if (!m_pitchMotor.Init(Protocol::CAR_I2C_CHANNEL_CAMERA_TILT, -defaultPitchDegree))
+		if (!m_pitchMotor.Init(RobotHat::CAR_I2C_CHANNEL_CAMERA_TILT, -defaultPitchDegree))
 		{
 			printf("Fail to init steer PWM motor\n");
 			return false;
 		}
-		if (!m_yawMotor.Init(Protocol::CAR_I2C_CHANNEL_CAMERA_YAW, -defaultYawDegree))
+		if (!m_yawMotor.Init(RobotHat::CAR_I2C_CHANNEL_CAMERA_YAW, -defaultYawDegree))
 		{
 			printf("Fail to init steer PWM motor\n");
 			return false;
@@ -537,10 +537,10 @@ namespace Hardware
 
 	bool Sensors::Init()
 	{
-		if (!m_led.Init(Protocol::GPIO_PIN_CAR_LED, true) ||
-			!m_switch.Init(Protocol::GPIO_PIN_SWITCH, false) ||
-			!m_tring.Init(Protocol::GPIO_PIN_SONIC_TRING, true) ||
-			!m_echo.Init(Protocol::GPIO_PIN_SONIC_ECHO, false))
+		if (!m_led.Init(Basic::GPIO_PIN_CAR_LED, true) ||
+			!m_switch.Init(Basic::GPIO_PIN_SWITCH, false) ||
+			!m_tring.Init(Basic::GPIO_PIN_SONIC_TRING, true) ||
+			!m_echo.Init(Basic::GPIO_PIN_SONIC_ECHO, false))
 		{
 			printf("Fail to init sonic sensor GPIO\n");
 			return false;
@@ -684,15 +684,15 @@ namespace Hardware
 
 	bool LcdDisplay::Init()
 	{
-		if (!m_ledFrontLeft.Init(Protocol::GPIO_PIN_LCD_LED_FRONT_LEFT, true) ||
-			!m_ledFrontRight.Init(Protocol::GPIO_PIN_LCD_LED_FRONT_RIGHT, true) ||
-			// !m_ledBackLeft.Init(Protocol::GPIO_PIN_LCD_LED_BACK_LEFT, true) ||	// Do not use when using picar
-			!m_ledBackRight.Init(Protocol::GPIO_PIN_LCD_LED_BACK_RIGHT, true))
+		if (!m_ledFrontLeft.Init(Basic::GPIO_PIN_LCD_LED_FRONT_LEFT, true) ||
+			!m_ledFrontRight.Init(Basic::GPIO_PIN_LCD_LED_FRONT_RIGHT, true) ||
+			// !m_ledBackLeft.Init(Basic::GPIO_PIN_LCD_LED_BACK_LEFT, true) ||	// Do not use when using picar
+			!m_ledBackRight.Init(Basic::GPIO_PIN_LCD_LED_BACK_RIGHT, true))
 		{
 			printf("Fail to init LCD LED GPIO\n");
 			return false;
 		}
-		if (!Protocol::LCD_I2C::Init())
+		if (!EP0152::LCD_I2C::Init())
 		{
 			printf("Fail to init LCD Display\n");
 			return false;

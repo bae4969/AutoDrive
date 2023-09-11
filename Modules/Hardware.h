@@ -1,15 +1,9 @@
 #pragma once
+#include "Basic.h"
 #include "Protocol.h"
+#include "RobotHat.h"
+#include "EP0152.h"
 #include "Camera.h"
-#include <zmq.hpp>
-#include <zmq_addon.hpp>
-#include <chrono>
-#include <mutex>
-#include <thread>
-#include <atomic>
-
-#define PROXY_XPUB_STR "ipc://temp/SERVER_XPUB"
-#define PROXY_XSUB_STR "ipc://temp/SERVER_XSUB"
 
 namespace Hardware
 {
@@ -20,11 +14,11 @@ namespace Hardware
 	{
 	private:
 		Protocol::PubSubClient m_pubSubClient;
-		Protocol::GPIO m_leftDir;
-		Protocol::GPIO m_rightDir;
-		Protocol::PWMMotor m_leftMotor;
-		Protocol::PWMMotor m_rightMotor;
-		Protocol::ServoMotor m_steerMotor;
+		Basic::GPIO m_leftDir;
+		Basic::GPIO m_rightDir;
+		RobotHat::PWMMotor m_leftMotor;
+		RobotHat::PWMMotor m_rightMotor;
+		RobotHat::ServoMotor m_steerMotor;
 
 		std::atomic<bool> m_isStop;
 		std::atomic<int> m_targetRearValue;
@@ -60,8 +54,8 @@ namespace Hardware
 	{
 	private:
 		Protocol::PubSubClient m_pubSubClient;
-		Protocol::ServoMotor m_pitchMotor;
-		Protocol::ServoMotor m_yawMotor;
+		RobotHat::ServoMotor m_pitchMotor;
+		RobotHat::ServoMotor m_yawMotor;
 
 		std::atomic<bool> m_isStop;
 		std::atomic<float> m_targetPitchDegree;
@@ -95,13 +89,13 @@ namespace Hardware
 	{
 	private:
 		Protocol::PubSubClient m_pubSubClient;
-		Protocol::GPIO m_led;
-		Protocol::GPIO m_switch;
-		Protocol::GPIO m_tring;
-		Protocol::GPIO m_echo;
-		Protocol::ADC m_left;
-		Protocol::ADC m_center;
-		Protocol::ADC m_right;
+		Basic::GPIO m_led;
+		Basic::GPIO m_switch;
+		Basic::GPIO m_tring;
+		Basic::GPIO m_echo;
+		RobotHat::ADC m_left;
+		RobotHat::ADC m_center;
+		RobotHat::ADC m_right;
 
 		std::atomic<bool> m_isStop;
 		std::atomic<double> m_sonicDistance; // mm
@@ -125,14 +119,14 @@ namespace Hardware
 		int GetFloorCenterValue();
 		int GetFloorRightValue();
 	};
-	class LcdDisplay : public Protocol::LCD_I2C
+	class LcdDisplay : public EP0152::LCD_I2C
 	{
 	private:
 		Protocol::PubSubClient m_pubSubClient;
-		Protocol::GPIO m_ledFrontLeft;
-		Protocol::GPIO m_ledFrontRight;
-		Protocol::GPIO m_ledBackLeft;
-		Protocol::GPIO m_ledBackRight;
+		Basic::GPIO m_ledFrontLeft;
+		Basic::GPIO m_ledFrontRight;
+		Basic::GPIO m_ledBackLeft;
+		Basic::GPIO m_ledBackRight;
 
 		std::atomic<bool> m_isStop;
 		float m_cpuTemp;

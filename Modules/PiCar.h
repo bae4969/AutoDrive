@@ -18,7 +18,7 @@ namespace PiCar
 	class PiCar
 	{
 	private:
-PICAR_MODE m_curMode = PICAR_MODE_NOT_SET;
+		PICAR_MODE m_curMode = PICAR_MODE_NOT_SET;
 
 		Protocol::PubSubServer m_pubSubServer;
 		Protocol::PubSubClient m_pubSubClient;
@@ -44,9 +44,10 @@ PICAR_MODE m_curMode = PICAR_MODE_NOT_SET;
 		void subThreadFunc();
 		void pubThreadFunc();
 
-		bool initCar();
-		bool initLcd();
-		bool initRemote();
+		bool initBasic();
+		bool initProtocol();
+		bool initRobotHat();
+		bool initEP0152();
 		bool initCamera();
 
 		void runDirectMode();
