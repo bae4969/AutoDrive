@@ -10,8 +10,8 @@
 #define STEER_MAX_DEGREE 30
 #define CAMERA_PITCH_MIN_DEGREE -30
 #define CAMERA_PITCH_MAX_DEGREE 50
-#define CAMERA_YAW_MIN_DEGREE -60
-#define CAMERA_YAW_MAX_DEGREE 60
+#define CAMERA_YAW_MIN_DEGREE -70
+#define CAMERA_YAW_MAX_DEGREE 70
 
 namespace Hardware
 {
@@ -50,9 +50,9 @@ namespace Hardware
 		}
 
 		m_isStop = false;
-		SetRearSpeed(500);
+		SetRearSpeed(1000);
 		SetRearValue(0);
-		SetSteerSpeed(25.0f);
+		SetSteerSpeed(30.0f);
 		SetSteerDegree(0.0f);
 		m_updateThread = thread(&MoveMotor::updateThreadFunc, this);
 
@@ -310,9 +310,9 @@ namespace Hardware
 		}
 
 		m_isStop = false;
-		SetPitchSpeed(100.0f);
+		SetPitchSpeed(90.0f);
 		SetPitchDegree(0.0f);
-		SetYawSpeed(100.0f);
+		SetYawSpeed(90.0f);
 		SetYawDegree(0.0f);
 		m_updateThread = thread(&CameraMotor::updateThreadFunc, this);
 
