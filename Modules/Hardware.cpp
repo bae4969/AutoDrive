@@ -52,7 +52,7 @@ namespace Hardware
 		m_isStop = false;
 		SetRearSpeed(500);
 		SetRearValue(0);
-		SetSteerSpeed(50.0f);
+		SetSteerSpeed(25.0f);
 		SetSteerDegree(0.0f);
 		m_updateThread = thread(&MoveMotor::updateThreadFunc, this);
 
@@ -310,9 +310,9 @@ namespace Hardware
 		}
 
 		m_isStop = false;
-		SetPitchSpeed(50.0f);
+		SetPitchSpeed(100.0f);
 		SetPitchDegree(0.0f);
-		SetYawSpeed(50.0f);
+		SetYawSpeed(100.0f);
 		SetYawDegree(0.0f);
 		m_updateThread = thread(&CameraMotor::updateThreadFunc, this);
 
