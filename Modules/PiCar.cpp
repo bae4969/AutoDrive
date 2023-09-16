@@ -23,10 +23,10 @@ namespace PiCar
 		{
 		case PICAR_MODE_DIRECT:
 		case PICAR_MODE_REMOTE:
-			isGood = initBasic() && initProtocol() && initRobotHat() && initEP0152() && initCamera();
+			isGood = initBasic() && initProtocol() && initRobotHat() && initEP0152() && initLD06() && initCamera();
 			break;
 		case PICAR_MODE_CAMERA:
-			isGood = initBasic() && initProtocol() && initEP0152() && initCamera();
+			isGood = initBasic() && initProtocol() && initEP0152() && initLD06() && initCamera();
 			break;
 		default:
 			isGood = false;
@@ -50,6 +50,7 @@ namespace PiCar
 			m_cameraMotor.Release();
 			m_sensors.Release();
 			m_display.Release();
+			m_lidar.Release();
 			m_cameraSensor.Release();
 			break;
 		case PICAR_MODE_REMOTE:
@@ -57,12 +58,14 @@ namespace PiCar
 			m_cameraMotor.Release();
 			m_sensors.Release();
 			m_display.Release();
+			m_lidar.Release();
 			m_cameraSensor.Release();
 			m_subThread.join();
 			m_pubThread.join();
 			break;
 		case PICAR_MODE_CAMERA:
 			m_display.Release();
+			m_lidar.Release();
 			m_cameraSensor.Release();
 			m_subThread.join();
 			m_pubThread.join();
@@ -165,6 +168,16 @@ namespace PiCar
 		if (!m_display.Init())
 		{
 			printf("Fail to init LCD protocol\n");
+			return false;
+		}
+
+		return true;
+	}
+	bool PiCar::initLD06()
+	{
+		if (!m_lidar.Init())
+		{
+			printf("Fail to init LD06\n");
 			return false;
 		}
 

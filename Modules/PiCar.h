@@ -26,6 +26,7 @@ namespace PiCar
 		Hardware::CameraMotor m_cameraMotor;
 		Hardware::Sensors m_sensors;
 		Hardware::LcdDisplay m_display;
+		Hardware::LidarSensor m_lidar;
 		Hardware::CameraSensor m_cameraSensor;
 
 		const std::chrono::milliseconds DALTA_DUATION = std::chrono::milliseconds(33);
@@ -48,6 +49,7 @@ namespace PiCar
 		bool initProtocol();
 		bool initRobotHat();
 		bool initEP0152();
+		bool initLD06();
 		bool initCamera();
 
 		void runDirectMode();

@@ -18,7 +18,9 @@ namespace Hardware
 	using namespace std;
 	using namespace cv;
 
-	static const chrono::milliseconds MOTION_DALTA_DUATION = chrono::milliseconds(33);
+	static const chrono::milliseconds MOTION_DALTA_DUATION = chrono::milliseconds(16);
+	static const chrono::milliseconds LCD_DALTA_DUATION = chrono::milliseconds(1000);
+	static const chrono::milliseconds LIDAR_DALTA_DUATION = chrono::milliseconds(33);
 	static const chrono::milliseconds CAMERA_DALTA_DUATION = chrono::milliseconds(33);
 
 	bool MoveMotor::Init(float defaultSteerAngle)
@@ -789,7 +791,7 @@ namespace Hardware
 
 			SetImage(displayImg);
 
-			this_thread::sleep_for(1000ms - (chrono::steady_clock::now() - start));
+			this_thread::sleep_for(LCD_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
 	}
 	void LcdDisplay::pubThreadFunc()
@@ -800,14 +802,15 @@ namespace Hardware
 		{
 			start = chrono::steady_clock::now();
 			m_syncMutex.lock();
-
+			double cpuTemp = m_cpuTemp;
+			int throttleState = m_throttleState;
 			m_syncMutex.unlock();
 
 			try
 			{
 				zmq::multipart_t pubMsg;
-				pubMsg.addtyp(m_cpuTemp);
-				pubMsg.addtyp(m_throttleState);
+				pubMsg.addtyp(cpuTemp);
+				pubMsg.addtyp(throttleState);
 				m_pubSubClient.PublishMessage(pubMsg);
 			}
 			catch (...)
@@ -815,6 +818,61 @@ namespace Hardware
 				printf("Fail to publish massage in LCD\n");
 			}
 			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
+		}
+	}
+
+	bool LidarSensor::Init()
+	{
+		if (!LD06::Lidar::Init())
+		{
+			printf("Fail to init Lidar sensor\n");
+			return false;
+		}
+
+		m_isStop = false;
+		if (!m_pubSubClient.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
+		{
+			printf("Fail to init ZMQ for Lidar sensor\n");
+			return false;
+		}
+		m_pubSubClient.ChangePubTopic("STATE_LIDAR_SENSOR");
+		m_pubThread = thread(&LidarSensor::pubThreadFunc, this);
+
+		return true;
+	}
+	void LidarSensor::Release()
+	{
+		LD06::Lidar::Release();
+		m_isStop = true;
+		m_pubThread.join();
+	}
+
+	void LidarSensor::pubThreadFunc()
+	{
+		chrono::steady_clock::time_point start;
+
+		while (!m_isStop)
+		{
+			start = chrono::steady_clock::now();
+			vector<DataType> data = GetData();
+
+			try
+			{
+				zmq::multipart_t pubMsg;
+				pubMsg.addtyp<int>(data.size());
+				for (size_t i = 0; i < data.size(); i++)
+				{
+					pubMsg.addtyp(data[i].Degree);
+					pubMsg.addtyp(data[i].Distance);
+					pubMsg.addtyp(data[i].Intensity);
+				}
+				m_pubSubClient.PublishMessage(pubMsg);
+			}
+			catch (...)
+			{
+				printf("Fail to publish massage in Lidar sensor\n");
+			}
+			this_thread::sleep_for(LIDAR_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
 	}
 

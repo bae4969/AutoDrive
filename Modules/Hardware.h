@@ -3,6 +3,7 @@
 #include "Protocol.h"
 #include "RobotHat.h"
 #include "EP0152.h"
+#include "LD06.h"
 #include "Camera.h"
 
 namespace Hardware
@@ -119,6 +120,7 @@ namespace Hardware
 		int GetFloorCenterValue();
 		int GetFloorRightValue();
 	};
+
 	class LcdDisplay : public EP0152::LCD_I2C
 	{
 	private:
@@ -136,6 +138,22 @@ namespace Hardware
 		std::thread m_pubThread;
 
 		void updateThreadFunc();
+		void pubThreadFunc();
+
+	public:
+		bool Init();
+		void Release();
+	};
+	class LidarSensor : public LD06::Lidar
+	{
+		typedef LD06::LidarData DataType;
+
+	private:
+		Protocol::PubSubClient m_pubSubClient;
+
+		std::atomic<bool> m_isStop;
+		std::thread m_pubThread;
+
 		void pubThreadFunc();
 
 	public:
