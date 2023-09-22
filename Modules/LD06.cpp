@@ -33,7 +33,7 @@ namespace LD06
 	bool Lidar::Init()
 	{
 		m_fd = -1;
-		m_fd = serialOpen("/dev/ttyAMA2", 230400);
+		m_fd = serialOpen("/dev/ttyUSB0", 230400);
 		if (m_fd < 0)
 		{
 			printf("Fail to open serial protocol for LD06\n");
