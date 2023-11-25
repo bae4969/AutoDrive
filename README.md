@@ -53,36 +53,13 @@
 		3) Two PWM motors
 			- Left Rear
 			- Right Rear
+   	3. Lidar
+    		1) USB serial protocol
 	3. Power
 		- USB-C to 9V DC
 
-# Data Structure
-	Main
-		ㄴ Protocol::PubSubServer	- xpub-xsub proxy
-			
-		ㄴ Protocol::PubSubClient	- main cmd
-
-		ㄴ Hardware::MoveMotor	- control steer servo and rear PWM motors
-			ㄴ Protocol::PubSubClient	- pub state and sub cmd steer and rear motor
-			ㄴ Protocol::GPIO [2]	- control rear PWM motor direction (forward or backward)
-			ㄴ Protocol::PWMMotor [2] : Protocol::I2C	- control rear PWM motor power
-			ㄴ Protocol::ServoMotor : Protocol::I2C	- control steer servo motor degree
-
-		ㄴ Hardware::CameraMotor	- control camera servo motors
-			ㄴ Protocol::PubSubClient	- pub state and sub cmd camera yaw and pitch motor
-			ㄴ Protocol::ServoMotor [2] : Protocol::I2C	- control camera yaw and pitch motor degree
-
-		ㄴ Hardware::Sensors	- get sensor values
-			ㄴ Protocol::PubSubClient	- pub sensor values
-			ㄴ Protocol::GPIO [2]	- sonic sensor gpio pins (trig and echo)
-			ㄴ Protocol::ADC [3] : Protocol::I2C	- floor sensors (left, centor, right)
-
-		ㄴ Hardware::CameraSensor	- get camera image
-			ㄴ Protocol::PubSubClient	- pub camera image (FPS : 20)
-			ㄴ Camera::DirectCamera	- Raspberry Pi Camera
-
 # TODO
 	1. Change camera from raspi cam to stereo depth detection camera
-	2. Add Lidar sensor
+ 	2. Need encode data or config auth user
 	
 
