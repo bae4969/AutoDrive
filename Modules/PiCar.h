@@ -2,7 +2,7 @@
 #include "Hardware.h"
 #include <opencv2/opencv.hpp>
 #include <atomic>
-#include <mutex>
+#include <shared_mutex>
 #include <thread>
 
 namespace PiCar
@@ -34,7 +34,7 @@ namespace PiCar
 		std::atomic<bool> m_isStop;
 		std::chrono::steady_clock::time_point lastConnTime;
 		cv::Mat imgBuffer;
-		std::mutex imgBufferMutex;
+		std::shared_mutex imgBufferMutex;
 
 		std::thread m_subThread;
 		std::thread m_pubThread;

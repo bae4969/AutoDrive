@@ -3,6 +3,7 @@
 #include <iostream>
 #include <math.h>
 #include <boost/shared_ptr.hpp>
+#include <shared_mutex>
 
 #define REAR_MIN_VALUE -2000
 #define REAR_MAX_VALUE 2000
@@ -84,14 +85,16 @@ namespace Hardware
 	{
 		bool isForward = value >= 0;
 		ushort absValue = abs(value);
+		bool isGood;
 
-		m_rearSyncMutex.lock();
-		bool isGood =
-			m_leftDir.SetOutput(!isForward) &&
-			m_rightDir.SetOutput(isForward) &&
-			m_leftMotor.SetValue(absValue) &&
-			m_rightMotor.SetValue(absValue);
-		m_rearSyncMutex.unlock();
+		{
+			unique_lock lock(m_rearSyncMutex);
+			isGood =
+				m_leftDir.SetOutput(!isForward) &&
+				m_rightDir.SetOutput(isForward) &&
+				m_leftMotor.SetValue(absValue) &&
+				m_rightMotor.SetValue(absValue);
+		}
 
 		if (!isGood)
 			printf("Fail to set rear value\n");
@@ -124,16 +127,16 @@ namespace Hardware
 		float absDiffSteerDegree;
 		while (!m_isStop)
 		{
-			start = chrono::steady_clock::now();
-
-			m_updateMutex.lock();
-			curRearValue = GetRearValue();
-			curSteerDegree = GetSteerDegree();
-			tarRearValue = m_targetRearValue;
-			tarSteerDegree = m_targetSteerDegree;
-			delDiffRearValue = m_deltaRearValue;
-			delDiffSteerDegree = m_deltaSteerDegree;
-			m_updateMutex.unlock();
+			{
+				shared_lock lock(m_updateMutex);
+				start = chrono::steady_clock::now();
+				curRearValue = GetRearValue();
+				curSteerDegree = GetSteerDegree();
+				tarRearValue = m_targetRearValue;
+				tarSteerDegree = m_targetSteerDegree;
+				delDiffRearValue = m_deltaRearValue;
+				delDiffSteerDegree = m_deltaSteerDegree;
+			}
 
 			absDiffRearValue = abs(tarRearValue - curRearValue);
 			if (absDiffRearValue >= 1)
@@ -212,18 +215,25 @@ namespace Hardware
 	void MoveMotor::pubThreadFunc()
 	{
 		chrono::steady_clock::time_point start;
+		int curRearValue;
+		int tarRearValue;
+		int delDiffRearValue;
+		float curSteerDegree;
+		float tarSteerDegree;
+		float delDiffSteerDegree;
 
 		while (!m_isStop)
 		{
-			start = chrono::steady_clock::now();
-			m_updateMutex.lock();
-			int curRearValue = GetRearValue();
-			int tarRearValue = m_targetRearValue;
-			int delDiffRearValue = m_deltaRearValue;
-			float curSteerDegree = GetSteerDegree();
-			float tarSteerDegree = m_targetSteerDegree;
-			float delDiffSteerDegree = m_deltaSteerDegree;
-			m_updateMutex.unlock();
+			{
+				shared_lock lock(m_updateMutex);
+				start = chrono::steady_clock::now();
+				curRearValue = GetRearValue();
+				tarRearValue = m_targetRearValue;
+				delDiffRearValue = m_deltaRearValue;
+				curSteerDegree = GetSteerDegree();
+				tarSteerDegree = m_targetSteerDegree;
+				delDiffSteerDegree = m_deltaSteerDegree;
+			}
 
 			try
 			{
@@ -246,9 +256,8 @@ namespace Hardware
 
 	bool MoveMotor::StopRearNow()
 	{
-		m_updateMutex.lock();
+		unique_lock lock(m_updateMutex);
 		m_targetRearValue = 0;
-		m_updateMutex.unlock();
 		return updateRearValue(m_targetRearValue);
 	}
 	void MoveMotor::SetRearValue(int value)
@@ -258,15 +267,13 @@ namespace Hardware
 		if (value < REAR_MIN_VALUE)
 			value = REAR_MIN_VALUE;
 
-		m_updateMutex.lock();
+		unique_lock lock(m_updateMutex);
 		m_targetRearValue = value;
-		m_updateMutex.unlock();
 	}
 	void MoveMotor::SetRearSpeed(int valuePerSecond)
 	{
-		m_updateMutex.lock();
+		unique_lock lock(m_updateMutex);
 		m_deltaRearValue = abs(round(valuePerSecond * MOTION_DALTA_DUATION.count() / 1000.0));
-		m_updateMutex.unlock();
 	}
 	int MoveMotor::GetRearValue()
 	{
@@ -283,15 +290,13 @@ namespace Hardware
 		if (degree < STEER_MIN_DEGREE)
 			degree = STEER_MIN_DEGREE;
 
-		m_updateMutex.lock();
+		unique_lock lock(m_updateMutex);
 		m_targetSteerDegree = degree;
-		m_updateMutex.unlock();
 	}
 	void MoveMotor::SetSteerSpeed(float degreePerSecond)
 	{
-		m_updateMutex.lock();
+		unique_lock lock(m_updateMutex);
 		m_deltaSteerDegree = abs(degreePerSecond * MOTION_DALTA_DUATION.count() / 1000.0f);
-		m_updateMutex.unlock();
 	}
 	float MoveMotor::GetSteerDegree()
 	{
@@ -376,16 +381,16 @@ namespace Hardware
 
 		while (!m_isStop)
 		{
-			start = chrono::steady_clock::now();
-
-			m_updateMutex.lock();
-			curPitchDegree = GetPitchDegree();
-			curYawDegree = GetYawDegree();
-			tarPitchDegree = m_targetPitchDegree;
-			tarYawDegree = m_targetYawDegree;
-			delDiffPitchDegree = m_deltaPitchDegree;
-			delDiffYawDegree = m_deltaYawDegree;
-			m_updateMutex.unlock();
+			{
+				shared_lock lock(m_updateMutex);
+				start = chrono::steady_clock::now();
+				curPitchDegree = GetPitchDegree();
+				curYawDegree = GetYawDegree();
+				tarPitchDegree = m_targetPitchDegree;
+				tarYawDegree = m_targetYawDegree;
+				delDiffPitchDegree = m_deltaPitchDegree;
+				delDiffYawDegree = m_deltaYawDegree;
+			}
 
 			absDiffPitchDegree = abs(tarPitchDegree - curPitchDegree);
 			if (absDiffPitchDegree >= FLT_EPSILON)
@@ -461,18 +466,25 @@ namespace Hardware
 	void CameraMotor::pubThreadFunc()
 	{
 		chrono::steady_clock::time_point start;
+		float curPitchDegree;
+		float tarPitchDegree;
+		float delDiffPitchDegree;
+		float curYawDegree;
+		float tarYawDegree;
+		float delDiffYawDegree;
 
 		while (!m_isStop)
 		{
-			start = chrono::steady_clock::now();
-			m_updateMutex.lock();
-			float curPitchDegree = GetPitchDegree();
-			float tarPitchDegree = m_targetPitchDegree;
-			float delDiffPitchDegree = m_deltaPitchDegree;
-			float curYawDegree = GetYawDegree();
-			float tarYawDegree = m_targetYawDegree;
-			float delDiffYawDegree = m_deltaYawDegree;
-			m_updateMutex.unlock();
+			{
+				shared_lock lock(m_updateMutex);
+				start = chrono::steady_clock::now();
+				curPitchDegree = GetPitchDegree();
+				tarPitchDegree = m_targetPitchDegree;
+				delDiffPitchDegree = m_deltaPitchDegree;
+				curYawDegree = GetYawDegree();
+				tarYawDegree = m_targetYawDegree;
+				delDiffYawDegree = m_deltaYawDegree;
+			}
 
 			try
 			{
@@ -500,15 +512,13 @@ namespace Hardware
 		if (degree < CAMERA_PITCH_MIN_DEGREE)
 			degree = CAMERA_PITCH_MIN_DEGREE;
 
-		m_updateMutex.lock();
+		unique_lock lock(m_updateMutex);
 		m_targetPitchDegree = degree;
-		m_updateMutex.unlock();
 	}
 	void CameraMotor::SetPitchSpeed(float degreePerSecond)
 	{
-		m_updateMutex.lock();
+		unique_lock lock(m_updateMutex);
 		m_deltaPitchDegree = abs(degreePerSecond * MOTION_DALTA_DUATION.count() / 1000.0f);
-		m_updateMutex.unlock();
 	}
 	float CameraMotor::GetPitchDegree()
 	{
@@ -522,15 +532,13 @@ namespace Hardware
 		if (degree < CAMERA_YAW_MIN_DEGREE)
 			degree = CAMERA_YAW_MIN_DEGREE;
 
-		m_updateMutex.lock();
+		unique_lock lock(m_updateMutex);
 		m_targetYawDegree = degree;
-		m_updateMutex.unlock();
 	}
 	void CameraMotor::SetYawSpeed(float degreePerSecond)
 	{
-		m_updateMutex.lock();
+		unique_lock lock(m_updateMutex);
 		m_deltaYawDegree = abs(degreePerSecond * MOTION_DALTA_DUATION.count() / 1000.0f);
-		m_updateMutex.unlock();
 	}
 	float CameraMotor::GetYawDegree()
 	{
@@ -616,11 +624,12 @@ namespace Hardware
 		if (t_v1 < 0 || t_v2 < 0 || t_v3 < 0)
 			return;
 
-		m_floorSyncMutex.lock();
-		m_floorLeftValue = t_v1;
-		m_floorCenterValue = t_v2;
-		m_floorRightValue = t_v3;
-		m_floorSyncMutex.unlock();
+		{
+			unique_lock lock(m_floorSyncMutex);
+			m_floorLeftValue = t_v1;
+			m_floorCenterValue = t_v2;
+			m_floorRightValue = t_v3;
+		}
 	}
 	void Sensors::updateThreadFunc()
 	{
@@ -639,16 +648,21 @@ namespace Hardware
 	void Sensors::pubThreadFunc()
 	{
 		chrono::steady_clock::time_point start;
+		double sonicValue;
+		int floorLeftValue;
+		int floorCenterValue;
+		int floorRightValue;
 
 		while (!m_isStop)
 		{
-			start = chrono::steady_clock::now();
-			m_floorSyncMutex.lock();
-			double sonicValue = m_sonicDistance;
-			int floorLeftValue = m_floorLeftValue;
-			int floorCenterValue = m_floorCenterValue;
-			int floorRightValue = m_floorRightValue;
-			m_floorSyncMutex.unlock();
+			{
+				shared_lock lock(m_floorSyncMutex);
+				start = chrono::steady_clock::now();
+				sonicValue = m_sonicDistance;
+				floorLeftValue = m_floorLeftValue;
+				floorCenterValue = m_floorCenterValue;
+				floorRightValue = m_floorRightValue;
+			}
 
 			try
 			{
@@ -774,17 +788,18 @@ namespace Hardware
 				}
 			}
 
-			m_syncMutex.lock();
-			if (temp > 0.f)
-				m_cpuTemp = temp;
-			if (thro >= 0)
-				m_throttleState = thro;
+			{
+				unique_lock lock(m_syncMutex);
+				if (temp > 0.f)
+					m_cpuTemp = temp;
+				if (thro >= 0)
+					m_throttleState = thro;
 
-			m_ledFrontLeft.SetOutput(temp > 60.f);
-			m_ledFrontRight.SetOutput(m_throttleState & 0x12);
-			sprintf(tempStrBuf, "Temp : %.01f", m_cpuTemp);
-			sprintf(throStrBuf, "State : %X", m_throttleState);
-			m_syncMutex.unlock();
+				m_ledFrontLeft.SetOutput(temp > 60.f);
+				m_ledFrontRight.SetOutput(m_throttleState & 0x12);
+				sprintf(tempStrBuf, "Temp : %.01f", m_cpuTemp);
+				sprintf(throStrBuf, "State : %X", m_throttleState);
+			}
 
 			putText(displayImg, throStrBuf, Point(0, 14), FONT_HERSHEY_DUPLEX, 0.4, 1);
 			putText(displayImg, tempStrBuf, Point(0, 30), FONT_HERSHEY_DUPLEX, 0.4, 1);
@@ -797,14 +812,17 @@ namespace Hardware
 	void LcdDisplay::pubThreadFunc()
 	{
 		chrono::steady_clock::time_point start;
+		double cpuTemp;
+		int throttleState;
 
 		while (!m_isStop)
 		{
-			start = chrono::steady_clock::now();
-			m_syncMutex.lock();
-			double cpuTemp = m_cpuTemp;
-			int throttleState = m_throttleState;
-			m_syncMutex.unlock();
+			{
+				shared_lock lock(m_syncMutex);
+				start = chrono::steady_clock::now();
+				cpuTemp = m_cpuTemp;
+				throttleState = m_throttleState;
+			}
 
 			try
 			{
@@ -907,15 +925,16 @@ namespace Hardware
 			if (!GetFrame(imageInfo))
 				return;
 
-			int w = imageInfo.Image.cols;
-			int h = imageInfo.Image.rows;
-			int ch = imageInfo.Image.channels();
+			int w = imageInfo.ImageLeft.cols;
+			int h = imageInfo.ImageLeft.rows;
+			int ch = imageInfo.ImageLeft.channels();
 
 			zmq::multipart_t msg;
 			msg.addtyp(w);
 			msg.addtyp(h);
 			msg.addtyp(ch);
-			msg.addmem(imageInfo.Image.data, w * h * ch);
+			msg.addmem(imageInfo.ImageLeft.data, w * h * ch);
+			msg.addmem(imageInfo.ImageRight.data, w * h * ch);
 			m_pubSubClient.PublishMessage(msg);
 		}
 		catch (...)
@@ -935,11 +954,13 @@ namespace Hardware
 			encodeParas.push_back(cv::IMWRITE_JPEG_QUALITY);
 			encodeParas.push_back(90); // 0...100 (higher is better)
 
-			vector<uchar> img_encoded;
-			cv::imencode(".jpg", imageInfo.Image, img_encoded, encodeParas);
+			vector<uchar> img_left_encoded, img_right_encoded;
+			cv::imencode(".jpg", imageInfo.ImageLeft, img_left_encoded, encodeParas);
+			cv::imencode(".jpg", imageInfo.ImageRight, img_right_encoded, encodeParas);
 
 			zmq::multipart_t msg;
-			msg.addmem(img_encoded.data(), img_encoded.size());
+			msg.addmem(img_left_encoded.data(), img_left_encoded.size());
+			msg.addmem(img_right_encoded.data(), img_right_encoded.size());
 			m_pubSubClient.PublishMessage(msg);
 		}
 		catch (...)
@@ -959,11 +980,13 @@ namespace Hardware
 			encodeParas.push_back(cv::IMWRITE_PNG_COMPRESSION);
 			encodeParas.push_back(1); // 0~7
 
-			vector<uchar> img_encoded;
-			cv::imencode(".png", imageInfo.Image, img_encoded, encodeParas);
+			vector<uchar> img_left_encoded, img_right_encoded;
+			cv::imencode(".png", imageInfo.ImageLeft, img_left_encoded, encodeParas);
+			cv::imencode(".png", imageInfo.ImageRight, img_right_encoded, encodeParas);
 
 			zmq::multipart_t msg;
-			msg.addmem(img_encoded.data(), img_encoded.size());
+			msg.addmem(img_left_encoded.data(), img_left_encoded.size());
+			msg.addmem(img_right_encoded.data(), img_right_encoded.size());
 			m_pubSubClient.PublishMessage(msg);
 		}
 		catch (...)

@@ -1,12 +1,13 @@
 #include "EP0152.h"
 #include <wiringPiI2C.h>
+#include <shared_mutex>
 
 namespace EP0152
 {
 	using namespace std;
 	using namespace cv;
 
-	static mutex i2cWriteMutex;
+	static shared_mutex i2cWriteMutex;
 	static int LCD_I2C_FD = -1;
 	static const int LCD_I2C_ADDRESS = 0x3C;
 

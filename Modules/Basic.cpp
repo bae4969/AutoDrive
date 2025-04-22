@@ -1,5 +1,6 @@
 #include "Basic.h"
 #include <wiringPi.h>
+#include <gpiod.h>
 
 namespace Basic
 {

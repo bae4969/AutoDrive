@@ -5,6 +5,7 @@
 #include <iostream>
 #include <math.h>
 #include <chrono>
+#include <shared_mutex>
 
 #define DEGREE_TO_RADIAN(deg) deg * 0.0174532925199432957692369076849
 #define RADIAN_TO_DEGREE(rad) rad * 57.295779513082320876798154814105
@@ -23,7 +24,7 @@ namespace PiCar
 		{
 		case PICAR_MODE_DIRECT:
 		case PICAR_MODE_REMOTE:
-			isGood = initBasic() && initProtocol() && initRobotHat() && initEP0152() && initLD06() && initCamera();
+			isGood = initBasic() && initProtocol() && initRobotHat() && initEP0152() && initLD06(); // && initCamera();
 			break;
 		case PICAR_MODE_CAMERA:
 			isGood = initBasic() && initProtocol() && initEP0152() && initLD06() && initCamera();
@@ -208,10 +209,8 @@ namespace PiCar
 		if (!m_cameraSensor.GetFrame(imgInfo))
 			return false;
 
-		Size printSize(640, 480);
-
-		Mat small;
-		resize(imgInfo.Image, small, printSize, 0.0, 0.0, INTER_NEAREST);
+		Mat concat_img;
+		hconcat(imgInfo.ImageLeft, imgInfo.ImageRight, concat_img);
 
 		int speed = m_moveMotor.GetRearValue();
 		float steerDegree = m_moveMotor.GetSteerDegree();
@@ -238,27 +237,27 @@ namespace PiCar
 			string camYawStr = format("Yaw : %.01f", yawDegree);
 			string camPitchStr = format("Pitch : %.01f", pitchDegree);
 
-			putText(small, speedStr, speedStrLoc, FONT_HERSHEY_SIMPLEX, 0.3, colorWhite, 1);
-			putText(small, steerStr, steerStrLoc, FONT_HERSHEY_SIMPLEX, 0.3, colorWhite, 1);
-			putText(small, camYawStr, camYawStrLoc, FONT_HERSHEY_SIMPLEX, 0.3, colorWhite, 1);
-			putText(small, camPitchStr, camPitchStrLoc, FONT_HERSHEY_SIMPLEX, 0.3, colorWhite, 1);
+			putText(concat_img, speedStr, speedStrLoc, FONT_HERSHEY_SIMPLEX, 0.3, colorWhite, 1);
+			putText(concat_img, steerStr, steerStrLoc, FONT_HERSHEY_SIMPLEX, 0.3, colorWhite, 1);
+			putText(concat_img, camYawStr, camYawStrLoc, FONT_HERSHEY_SIMPLEX, 0.3, colorWhite, 1);
+			putText(concat_img, camPitchStr, camPitchStrLoc, FONT_HERSHEY_SIMPLEX, 0.3, colorWhite, 1);
 		}
 		{
 			Rect speedBGRect(10, 390, 30, 80);
 			Rect speedFGRect(10, 430, 30, 00);
 
-			rectangle(small, speedBGRect, colorWhite, FILLED);
+			rectangle(concat_img, speedBGRect, colorWhite, FILLED);
 			if (speed >= 0)
 			{
 				speedFGRect.height = abs(speed * 0.02);
 				speedFGRect.y = 430 - speedFGRect.height;
-				rectangle(small, speedFGRect, colorBlue, FILLED);
+				rectangle(concat_img, speedFGRect, colorBlue, FILLED);
 			}
 			else
 			{
 				speedFGRect.y = 430;
 				speedFGRect.height = abs(speed * 0.02);
-				rectangle(small, speedFGRect, colorRed, FILLED);
+				rectangle(concat_img, speedFGRect, colorRed, FILLED);
 			}
 		}
 		{
@@ -273,8 +272,8 @@ namespace PiCar
 			newRotVec.y = steerArrowVec.x * t_sin + steerArrowVec.y * t_cos;
 			Point steerArrowTo = steerArrowFrom + newRotVec;
 
-			arrowedLine(small, steerArrowFrom, steerArrowTo, colorBlack, 10);
-			arrowedLine(small, steerArrowFrom, steerArrowTo, colorWhite, 6);
+			arrowedLine(concat_img, steerArrowFrom, steerArrowTo, colorBlack, 10);
+			arrowedLine(concat_img, steerArrowFrom, steerArrowTo, colorWhite, 6);
 		}
 		{
 			double x_cos = sin(DEGREE_TO_RADIAN(yawDegree)) * 40.0;
@@ -283,8 +282,8 @@ namespace PiCar
 			Rect camBGRect(530, 390, 100, 80);
 			Point camFGLoc(580 + x_cos, 435 - y_cos);
 
-			rectangle(small, camBGRect, colorWhite, FILLED);
-			circle(small, camFGLoc, 5, colorRed, FILLED);
+			rectangle(concat_img, camBGRect, colorWhite, FILLED);
+			circle(concat_img, camFGLoc, 5, colorRed, FILLED);
 		}
 		{
 			Point distanceStrLoc(320, 440);
@@ -298,8 +297,8 @@ namespace PiCar
 			bgStrLoc.x -= bgSize.width * 0.5;
 			fgStrLoc.x -= fgSize.width * 0.5;
 
-			putText(small, distanceStr, bgStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, colorBlack, 5);
-			putText(small, distanceStr, fgStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, colorWhite, 2);
+			putText(concat_img, distanceStr, bgStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, colorBlack, 5);
+			putText(concat_img, distanceStr, fgStrLoc, FONT_HERSHEY_SIMPLEX, 0.5, colorWhite, 2);
 		}
 		{
 			Point leftLoc(300, 460);
@@ -321,14 +320,15 @@ namespace PiCar
 			Scalar centerColor(255 * multiCenterFloorVal, 255 * multiLeftFloorVal, 255);
 			Scalar rightColor(255 * multiRightFloorVal, 255 * multiLeftFloorVal, 255);
 
-			circle(small, leftLoc, 5, leftColor, FILLED);
-			circle(small, centerLoc, 5, centerColor, FILLED);
-			circle(small, rightLoc, 5, rightColor, FILLED);
+			circle(concat_img, leftLoc, 5, leftColor, FILLED);
+			circle(concat_img, centerLoc, 5, centerColor, FILLED);
+			circle(concat_img, rightLoc, 5, rightColor, FILLED);
 		}
 
-		imgBufferMutex.lock();
-		imgBuffer = small;
-		imgBufferMutex.unlock();
+		{
+			unique_lock lock(imgBufferMutex);
+			imgBuffer = concat_img;
+		}
 
 		return true;
 	}
@@ -490,9 +490,8 @@ namespace PiCar
 		{
 			if (updateCameraImage())
 			{
-				imgBufferMutex.lock();
+				shared_lock lock(imgBufferMutex);
 				imshow(winName, imgBuffer);
-				imgBufferMutex.unlock();
 			}
 
 			executeKeyInput(waitKey(100));

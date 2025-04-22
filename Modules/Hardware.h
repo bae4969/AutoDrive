@@ -26,8 +26,8 @@ namespace Hardware
 		std::atomic<int> m_deltaRearValue;
 		std::atomic<float> m_targetSteerDegree;
 		std::atomic<float> m_deltaSteerDegree;
-		std::mutex m_rearSyncMutex;
-		std::mutex m_updateMutex;
+		std::shared_mutex m_rearSyncMutex;
+		std::shared_mutex m_updateMutex;
 		std::thread m_updateThread;
 		std::thread m_subThread;
 		std::thread m_pubThread;
@@ -63,7 +63,7 @@ namespace Hardware
 		std::atomic<float> m_deltaPitchDegree;
 		std::atomic<float> m_targetYawDegree;
 		std::atomic<float> m_deltaYawDegree;
-		std::mutex m_updateMutex;
+		std::shared_mutex m_updateMutex;
 		std::thread m_updateThread;
 		std::thread m_subThread;
 		std::thread m_pubThread;
@@ -103,7 +103,7 @@ namespace Hardware
 		std::atomic<int> m_floorLeftValue;
 		std::atomic<int> m_floorCenterValue;
 		std::atomic<int> m_floorRightValue;
-		std::mutex m_floorSyncMutex;
+		std::shared_mutex m_floorSyncMutex;
 		std::thread m_updateThread;
 		std::thread m_pubThread;
 
@@ -133,7 +133,7 @@ namespace Hardware
 		std::atomic<bool> m_isStop;
 		float m_cpuTemp;
 		int m_throttleState;
-		std::mutex m_syncMutex;
+		std::shared_mutex m_syncMutex;
 		std::thread m_updateThread;
 		std::thread m_pubThread;
 

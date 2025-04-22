@@ -1,6 +1,8 @@
 #include "LD06.h"
 #include <wiringPi.h>
 #include <wiringSerial.h>
+#include <mutex>
+#include <shared_mutex>
 
 namespace LD06
 {
@@ -134,9 +136,10 @@ namespace LD06
 					localData.push_back(t_data);
 					if (i < 11 && packetBuf[i].Degree > packetBuf[i + 1].Degree)
 					{
-						m_dataMutex.lock();
-						m_data = localData;
-						m_dataMutex.unlock();
+						{
+							unique_lock lock(m_dataMutex);
+							m_data = localData;
+						}
 						localData.clear();
 					}
 				}
@@ -146,9 +149,11 @@ namespace LD06
 
 	std::vector<LidarData> Lidar::GetData()
 	{
-		m_dataMutex.lock();
-		vector<LidarData> ret = m_data;
-		m_dataMutex.unlock();
+		vector<LidarData> ret;
+		{
+			shared_lock lock(m_dataMutex);
+			ret = m_data;
+		}
 		return ret;
 	}
 }

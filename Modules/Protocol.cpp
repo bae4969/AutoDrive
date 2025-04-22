@@ -25,9 +25,9 @@ namespace Protocol
 		m_pubSocket = make_shared<zmq::socket_t>(*CONTEXT, zmq::socket_type::pub);
 		m_pubTopic = "NOT DEFINED";
 
-		m_subSocket->setsockopt(ZMQ_RCVTIMEO, 1);
-		m_subSocket->setsockopt(ZMQ_RCVHWM, 20);
-		m_pubSocket->setsockopt(ZMQ_SNDHWM, 20);
+		m_subSocket->set(zmq::sockopt::rcvtimeo, 1);
+		m_subSocket->set(zmq::sockopt::rcvhwm, 20);
+		m_subSocket->set(zmq::sockopt::sndhwm, 20);
 
 		m_subSocket->connect(subConnStr);
 		m_pubSocket->connect(pubConnStr);
@@ -53,11 +53,11 @@ namespace Protocol
 	}
 	void PubSubClient::AddSubTopic(std::string topic)
 	{
-		m_subSocket->setsockopt(ZMQ_SUBSCRIBE, topic.c_str(), topic.length());
+		m_subSocket->set(zmq::sockopt::subscribe, topic);
 	}
 	void PubSubClient::RemoveSubTopic(std::string topic)
 	{
-		m_subSocket->setsockopt(ZMQ_UNSUBSCRIBE, topic);
+		m_subSocket->set(zmq::sockopt::unsubscribe, topic);
 	}
 	bool PubSubClient::SubscribeMessage(zmq::multipart_t &msg)
 	{
@@ -68,8 +68,8 @@ namespace Protocol
 	{
 		m_xSubSocket = make_shared<zmq::socket_t>(*CONTEXT, zmq::socket_type::xsub);
 		m_xPubSocket = make_shared<zmq::socket_t>(*CONTEXT, zmq::socket_type::xpub);
-		m_xSubSocket->setsockopt(ZMQ_RCVHWM, 20);
-		m_xPubSocket->setsockopt(ZMQ_SNDHWM, 20);
+		m_xPubSocket->set(zmq::sockopt::rcvhwm, 20);
+		m_xSubSocket->set(zmq::sockopt::sndhwm, 20);
 
 		for (string xSubConnStr : xSubConnStrs)
 			m_xSubSocket->bind(xSubConnStr);

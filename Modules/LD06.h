@@ -3,7 +3,7 @@
 #include <thread>
 #include <chrono>
 #include <queue>
-#include <mutex>
+#include <shared_mutex>
 #include <atomic>
 
 namespace LD06
@@ -24,7 +24,7 @@ namespace LD06
 		std::atomic<bool> m_isStop;
 		std::vector<LidarData> m_data;
 		std::thread m_recvThread;
-		std::mutex m_dataMutex;
+		std::shared_mutex m_dataMutex;
 
 		bool isValidData(int* data, int len);
 		int concatBytes(int& left, int& right);

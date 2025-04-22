@@ -3,14 +3,15 @@
 #include <wiringPiI2C.h>
 #include <vector>
 #include <math.h>
-#include <mutex>
 #include <chrono>
+#include <mutex>
+#include <shared_mutex>
 
 namespace RobotHat
 {
 	using namespace std;
 
-	static mutex i2cWriteMutex;
+	static shared_mutex i2cWriteMutex;
 	static int CAR_I2C_FD = -1;
 	static const int CAR_I2C_ADDRESS = 0x14;
 
@@ -81,9 +82,11 @@ namespace RobotHat
 		}
 
 		int reg = PULSE_WIDTH_REG_OFFSET + m_channel;
-		i2cWriteMutex.lock();
-		int ret = wiringPiI2CWriteReg16(CAR_I2C_FD, reg, convertBig2Little(value));
-		i2cWriteMutex.unlock();
+		int ret;
+		{
+			unique_lock lock(i2cWriteMutex);
+			ret = wiringPiI2CWriteReg16(CAR_I2C_FD, reg, convertBig2Little(value));
+		}
 		if (ret < 0)
 		{
 			printf("Fail to write CAR I2C %d pulse width\n", reg);
@@ -149,9 +152,11 @@ namespace RobotHat
 		}
 
 		int reg = PRESCALER_REG_OFFSET + m_group;
-		i2cWriteMutex.lock();
-		int ret = wiringPiI2CWriteReg16(CAR_I2C_FD, reg, convertBig2Little(value));
-		i2cWriteMutex.unlock();
+		int ret;
+		{
+			unique_lock lock(i2cWriteMutex);
+			ret = wiringPiI2CWriteReg16(CAR_I2C_FD, reg, convertBig2Little(value));
+		}
 		if (ret < 0)
 		{
 			printf("Fail to write CAR I2C %d prescaler\n", reg);
@@ -170,9 +175,11 @@ namespace RobotHat
 		}
 
 		int reg = PERIOD_REG_OFFSET + m_group;
-		i2cWriteMutex.lock();
-		int ret = wiringPiI2CWriteReg16(CAR_I2C_FD, reg, convertBig2Little(value));
-		i2cWriteMutex.unlock();
+		int ret;
+		{
+			unique_lock lock(i2cWriteMutex);
+			ret = wiringPiI2CWriteReg16(CAR_I2C_FD, reg, convertBig2Little(value));
+		}
 		if (ret < 0)
 		{
 			printf("Fail to write CAR I2C %d period\n", reg);
@@ -291,11 +298,15 @@ namespace RobotHat
 			return -1;
 		}
 
-		i2cWriteMutex.lock();
-		int ret = wiringPiI2CWriteReg16(CAR_I2C_FD, m_channel, 0);
-		int first = wiringPiI2CRead(CAR_I2C_FD);
-		int second = wiringPiI2CRead(CAR_I2C_FD);
-		i2cWriteMutex.unlock();
+		int ret;
+		int first;
+		int second;
+		{
+			shared_lock lock(i2cWriteMutex);
+			ret = wiringPiI2CWriteReg16(CAR_I2C_FD, m_channel, 0);
+			first = wiringPiI2CRead(CAR_I2C_FD);
+			second = wiringPiI2CRead(CAR_I2C_FD);
+		}
 
 		bool isGood = ret >= 0 || first >= 0 || second >= 0;
 

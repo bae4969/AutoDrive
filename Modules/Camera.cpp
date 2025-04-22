@@ -2,12 +2,13 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <chrono>
+#include <shared_mutex>
 
 namespace Camera
 {
 	using namespace std;
 	using namespace cv;
-	
+
 	DirectCamera::DirectCamera()
 	{
 		m_threadStop = true;
@@ -16,7 +17,7 @@ namespace Camera
 	{
 		m_threadStop = true;
 		m_captureThread.join();
-		m_rasCam.release();
+		m_cameraManager.stop();
 	}
 	bool DirectCamera::Init(int w, int h, int bufSize, int frameRate)
 	{
@@ -27,31 +28,86 @@ namespace Camera
 		m_bufferSize = bufSize;
 		m_imageSize = Size(w, h);
 		m_frameBuffer.resize(m_bufferSize);
-
-		m_rasCam.set(CAP_PROP_FORMAT, CV_8UC3);
-		m_rasCam.set(CAP_PROP_FRAME_WIDTH, m_imageSize.width);
-		m_rasCam.set(CAP_PROP_FRAME_HEIGHT, m_imageSize.height);
-		m_rasCam.set(CAP_PROP_FPS, m_frameRate);
-		m_rasCam.set(CAP_PROP_EXPOSURE, 8);
-		m_rasCam.set(CAP_PROP_GAIN, 100);
-
-		// cv::CAP_PROP_CONTRAST: [0,100]
-		// cv::CAP_PROP_SATURATION: [0,100]
-		// cv::CAP_PROP_GAIN: (iso): [0,100]
-		// cv::CAP_PROP_EXPOSURE: -1 auto. [1,100] shutter speed from 0 to 33ms
-		// cv::CAP_PROP_WHITE_BALANCE_RED_V : [1,100] -1 auto whitebalance
-		// cv::CAP_PROP_WHITE_BALANCE_BLUE_U : [1,100] -1 auto whitebalance
-		// cv::CAP_PROP_MODE : [1,7] 0 auto mode
-
 		for (auto &t_buf : m_frameBuffer)
-			t_buf.IsSet = false;
-
-		m_rasCam.release();
-		if (!m_rasCam.open())
 		{
-			cout << "Error opening camera" << endl;
+			t_buf.IsSet = false;
+			t_buf.Time = chrono::steady_clock::now();
+			t_buf.ImageLeft = Mat::zeros(m_imageSize, CV_8UC3);
+			t_buf.ImageRight = Mat::zeros(m_imageSize, CV_8UC3);
+		}
+
+		m_cameraManager.start();
+		const auto &cameras = m_cameraManager.cameras();
+		if (cameras.size() < 1)
+		{
+			cout << "Two camera was not found" << endl;
 			return false;
 		}
+
+		m_camera0 = cameras[0];
+		m_camera1 = cameras[1];
+		// 사용권 요청
+		if (m_camera0->acquire() ||
+			m_camera1->acquire())
+		{
+			cout << "Fail to acquire camera" << endl;
+			return false;
+		}
+
+		// m_cameraConfig0 = m_camera0->generateConfiguration({StreamRole::Viewfinder});
+		// m_cameraConfig1 = m_camera1->generateConfiguration({StreamRole::Viewfinder});
+		// if (!m_cameraConfig0 ||
+		// 	!m_cameraConfig1)
+		// {
+		// 	cout << "Fail to generate camera configuration" << endl;
+		// 	return false;
+		// }
+
+		// m_cameraConfig0->at(0).pixelFormat = m_cameraConfig1->at(0).pixelFormat = formats::BGR888;
+		// m_cameraConfig0->at(0).size = m_cameraConfig1->at(0).size = {m_imageSize.width, m_imageSize.height};
+		// m_cameraConfig0->validate();
+		// m_cameraConfig1->validate();
+		// if (m_camera0->configure(m_cameraConfig0.get()) < 0 ||
+		// 	m_camera1->configure(m_cameraConfig1.get()) < 0)
+		// {
+		// 	cout << "Fail to configure camera" << endl;
+		// 	return false;
+		// }
+
+		// m_allocator0 = libcamera::FrameBufferAllocator(m_camera0);
+		// m_allocator1 = libcamera::FrameBufferAllocator(m_camera1);
+		// for (libcamera::StreamConfiguration &cfg : *m_cameraConfig0)
+		// {
+		// 	if (allocator.allocate(cfg.stream()) < 0)
+		// 	{
+		// 		cerr << "Failed to allocate buffers" << endl;
+		// 		return false;
+		// 	}
+		// }
+		// for (libcamera::StreamConfiguration &cfg : *m_cameraConfig1)
+		// {
+		// 	if (allocator.allocate(cfg.stream()) < 0)
+		// 	{
+		// 		cerr << "Failed to allocate buffers" << endl;
+		// 		return false;
+		// 	}
+		// }
+
+		// m_request0 = m_camera0->createRequest();
+		// m_request1 = m_camera1->createRequest();
+		// if (!m_request0 ||
+		// 	!m_request1)
+		// {
+		// 	cout << "Fail to create request" << endl;
+		// 	return false;
+		// }
+
+		// m_stream0 = m_cameraConfig0->at(0).stream();
+		// m_stream1 = m_cameraConfig1->at(0).stream();
+		// const std::vector<std::unique_ptr<libcamera::FrameBuffer>> &buffers = allocator.buffers(m_stream0);
+
+		// request->addBuffer(m_stream0, buffers[0].get());
+
 		cout << "Wait for stabilizing camera ..." << endl;
 		this_thread::sleep_for(chrono::seconds(3));
 
@@ -68,23 +124,24 @@ namespace Camera
 			if (nextBufIdx >= m_bufferSize)
 				nextBufIdx = 0;
 
-			if (!m_rasCam.grab())
-			{
-				printf("Fail to grab image\n");
-				continue;
-			}
+			// TODO
 
-			m_bufferMutex.lock();
+			// if (!m_rasCam.grab())
+			// {
+			// 	printf("Fail to grab image\n");
+			// 	continue;
+			// }
+
+			unique_lock lock(m_bufferMutex);
 			m_frameBuffer[nextBufIdx].IsSet = true;
 			m_frameBuffer[nextBufIdx].Time = chrono::steady_clock::now();
-			m_rasCam.retrieve(m_frameBuffer[nextBufIdx].Image);
+			// m_rasCam.retrieve(m_frameBuffer[nextBufIdx].Image);
 			m_bufferIndex = nextBufIdx;
-			m_bufferMutex.unlock();
 		}
 	}
 	Size DirectCamera::GetSize()
 	{
-		return Size(m_rasCam.get(CAP_PROP_FRAME_WIDTH), m_rasCam.get(CAP_PROP_FRAME_HEIGHT));
+		return m_imageSize;
 	}
 	bool DirectCamera::GetFrame(ImageInfo &out_imageInfo, int offset)
 	{
@@ -94,12 +151,11 @@ namespace Camera
 			return false;
 		}
 
-		m_bufferMutex.lock();
+		shared_lock lock(m_bufferMutex);
 		int lastBufferIndex = m_bufferIndex - offset;
 		if (lastBufferIndex < 0)
 			lastBufferIndex += m_bufferSize;
 		out_imageInfo = m_frameBuffer[lastBufferIndex];
-		m_bufferMutex.unlock();
 
 		return out_imageInfo.IsSet;
 	}
