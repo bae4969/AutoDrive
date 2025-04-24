@@ -3,160 +3,217 @@
 #include <iostream>
 #include <chrono>
 #include <shared_mutex>
+#include <sys/mman.h>
+#include <fcntl.h>
 
 namespace Camera
 {
 	using namespace std;
 	using namespace cv;
 
+	bool ConvertBufferToMat(Mat &out_mat, libcamera::FrameBuffer *buffer)
+	{
+		try
+		{
+			const libcamera::FrameBuffer::Plane &plane = buffer->planes()[0];
+			int fd = plane.fd.get();
+			size_t length = plane.length;
+
+			void *mem = mmap(nullptr, length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+			if (mem == MAP_FAILED)
+				throw std::runtime_error("mmap failed");
+
+			memcpy(out_mat.data, mem, out_mat.total() * out_mat.elemSize());
+			munmap(mem, length);
+
+			return true;
+		}
+		catch (...)
+		{
+			return false;
+		}
+	}
+
 	DirectCamera::DirectCamera()
 	{
-		m_threadStop = true;
 	}
 	DirectCamera::~DirectCamera()
 	{
-		m_threadStop = true;
-		m_captureThread.join();
+		m_camera[0]->stop();
+		m_camera[1]->stop();
 		m_cameraManager.stop();
 	}
 	bool DirectCamera::Init(int w, int h, int bufSize, int frameRate)
 	{
-		m_threadStop = true;
-
 		m_frameRate = frameRate;
-		m_bufferIndex = 0;
 		m_bufferSize = bufSize;
 		m_imageSize = Size(w, h);
-		m_frameBuffer.resize(m_bufferSize);
-		for (auto &t_buf : m_frameBuffer)
+		m_bufferIndex[0] = 0;
+		m_bufferIndex[1] = 0;
+		m_frameBuffer[0].resize(m_bufferSize);
+		m_frameBuffer[1].resize(m_bufferSize);
+		for (auto &t_list : m_frameBuffer)
 		{
-			t_buf.IsSet = false;
-			t_buf.Time = chrono::steady_clock::now();
-			t_buf.ImageLeft = Mat::zeros(m_imageSize, CV_8UC3);
-			t_buf.ImageRight = Mat::zeros(m_imageSize, CV_8UC3);
+			for (auto &t_buf : t_list)
+			{
+				t_buf.IsSet = false;
+				t_buf.Time = chrono::steady_clock::now();
+				t_buf.Image = Mat::zeros(m_imageSize, CV_8UC3);
+			}
 		}
 
 		m_cameraManager.start();
-		const auto &cameras = m_cameraManager.cameras();
-		if (cameras.size() < 1)
+		if (m_cameraManager.cameras().size() < 2)
 		{
 			cout << "Two camera was not found" << endl;
 			return false;
 		}
 
-		m_camera0 = cameras[0];
-		m_camera1 = cameras[1];
-		// 사용권 요청
-		if (m_camera0->acquire() ||
-			m_camera1->acquire())
+		if (startCamera(0) == false)
 		{
-			cout << "Fail to acquire camera" << endl;
+			cout << "Fail to init camera 0" << endl;
+			return false;
+		}
+		if (startCamera(1) == false)
+		{
+			cout << "Fail to init camera 1" << endl;
 			return false;
 		}
 
-		// m_cameraConfig0 = m_camera0->generateConfiguration({StreamRole::Viewfinder});
-		// m_cameraConfig1 = m_camera1->generateConfiguration({StreamRole::Viewfinder});
-		// if (!m_cameraConfig0 ||
-		// 	!m_cameraConfig1)
-		// {
-		// 	cout << "Fail to generate camera configuration" << endl;
-		// 	return false;
-		// }
-
-		// m_cameraConfig0->at(0).pixelFormat = m_cameraConfig1->at(0).pixelFormat = formats::BGR888;
-		// m_cameraConfig0->at(0).size = m_cameraConfig1->at(0).size = {m_imageSize.width, m_imageSize.height};
-		// m_cameraConfig0->validate();
-		// m_cameraConfig1->validate();
-		// if (m_camera0->configure(m_cameraConfig0.get()) < 0 ||
-		// 	m_camera1->configure(m_cameraConfig1.get()) < 0)
-		// {
-		// 	cout << "Fail to configure camera" << endl;
-		// 	return false;
-		// }
-
-		// m_allocator0 = libcamera::FrameBufferAllocator(m_camera0);
-		// m_allocator1 = libcamera::FrameBufferAllocator(m_camera1);
-		// for (libcamera::StreamConfiguration &cfg : *m_cameraConfig0)
-		// {
-		// 	if (allocator.allocate(cfg.stream()) < 0)
-		// 	{
-		// 		cerr << "Failed to allocate buffers" << endl;
-		// 		return false;
-		// 	}
-		// }
-		// for (libcamera::StreamConfiguration &cfg : *m_cameraConfig1)
-		// {
-		// 	if (allocator.allocate(cfg.stream()) < 0)
-		// 	{
-		// 		cerr << "Failed to allocate buffers" << endl;
-		// 		return false;
-		// 	}
-		// }
-
-		// m_request0 = m_camera0->createRequest();
-		// m_request1 = m_camera1->createRequest();
-		// if (!m_request0 ||
-		// 	!m_request1)
-		// {
-		// 	cout << "Fail to create request" << endl;
-		// 	return false;
-		// }
-
-		// m_stream0 = m_cameraConfig0->at(0).stream();
-		// m_stream1 = m_cameraConfig1->at(0).stream();
-		// const std::vector<std::unique_ptr<libcamera::FrameBuffer>> &buffers = allocator.buffers(m_stream0);
-
-		// request->addBuffer(m_stream0, buffers[0].get());
-
-		cout << "Wait for stabilizing camera ..." << endl;
-		this_thread::sleep_for(chrono::seconds(3));
-
-		m_threadStop = false;
-		m_captureThread = thread(&DirectCamera::insertNewFrame, this);
+		for (auto &request : m_requests[0])
+			m_camera[0]->queueRequest(request.get());
+		for (auto &request : m_requests[1])
+			m_camera[1]->queueRequest(request.get());
 
 		return true;
 	}
-	void DirectCamera::insertNewFrame()
+	bool DirectCamera::startCamera(int cam_idx)
 	{
-		while (!m_threadStop)
+		const auto &camera = m_camera[cam_idx] = m_cameraManager.cameras()[cam_idx];
+		if (camera->acquire() < 0)
 		{
-			int nextBufIdx = m_bufferIndex + 1;
-			if (nextBufIdx >= m_bufferSize)
-				nextBufIdx = 0;
-
-			// TODO
-
-			// if (!m_rasCam.grab())
-			// {
-			// 	printf("Fail to grab image\n");
-			// 	continue;
-			// }
-
-			unique_lock lock(m_bufferMutex);
-			m_frameBuffer[nextBufIdx].IsSet = true;
-			m_frameBuffer[nextBufIdx].Time = chrono::steady_clock::now();
-			// m_rasCam.retrieve(m_frameBuffer[nextBufIdx].Image);
-			m_bufferIndex = nextBufIdx;
+			cout << "Fail to acquire camera " << cam_idx << endl;
+			return false;
 		}
+
+		auto &cameraConfig = m_config[cam_idx] = camera->generateConfiguration({libcamera::StreamRole::VideoRecording});
+		if (!cameraConfig)
+		{
+			cout << "Fail to generate configuration for camera " << cam_idx << endl;
+			return false;
+		}
+		cameraConfig->at(0).pixelFormat = libcamera::formats::BGR888;
+		cameraConfig->at(0).size.width = static_cast<uint32_t>(m_imageSize.width);
+		cameraConfig->at(0).size.height = static_cast<uint32_t>(m_imageSize.height);
+		cameraConfig->at(0).bufferCount = 4;
+		cameraConfig->validate();
+		if (camera->configure(cameraConfig.get()) < 0)
+		{
+			cout << "Fail to configure camera " << cam_idx << endl;
+			return false;
+		}
+
+		auto &allocator = m_allocator[cam_idx] = make_unique<libcamera::FrameBufferAllocator>(camera);
+		for (libcamera::StreamConfiguration &cfg : *cameraConfig)
+		{
+			if (allocator->allocate(cfg.stream()) < 0)
+			{
+				cout << "Buffer allocation failed for camera " << cam_idx << endl;
+				return false;
+			}
+		}
+		auto &cameraStream = m_stream[cam_idx] = cameraConfig->at(0).stream();
+		const auto &buffers = allocator->buffers(cameraStream);
+		for (const auto &buf : buffers)
+		{
+			auto request = camera->createRequest();
+			if (!request)
+			{
+				cout << "Failed to create request for camera " << cam_idx << endl;
+				continue;
+			}
+			if (request->addBuffer(cameraStream, buf.get()) < 0)
+			{
+				cout << "Failed to add buffer to request for camera " << cam_idx << endl;
+				continue;
+			}
+			m_requests[cam_idx].push_back(std::move(request));
+		}
+
+		camera->requestCompleted.connect(
+			this,
+			[this, cam_idx](libcamera::Request *request)
+			{
+				try
+				{
+					if (request->status() != libcamera::Request::RequestComplete)
+						throw std::runtime_error("Request not complete");
+
+					auto currentTime = chrono::steady_clock::now();
+					{
+						auto *buffer = request->buffers().at(m_stream[cam_idx]);
+						unique_lock lock(m_bufferMutex[cam_idx]);
+						int nextBufIdx = (m_bufferIndex[cam_idx] + 1) % m_bufferSize;
+						auto &imageInfo = m_frameBuffer[cam_idx][nextBufIdx];
+						imageInfo.IsSet = ConvertBufferToMat(imageInfo.Image, buffer);
+						if (imageInfo.IsSet)
+						{
+							imageInfo.Time = currentTime;
+							m_bufferIndex[cam_idx] = nextBufIdx;
+							m_frameCount[cam_idx]++;
+						}
+					}
+
+					if (m_frameCount[cam_idx] % m_frameRate == 0)
+					{
+						auto elapsed = currentTime - m_frameCounterStart[cam_idx];
+						cout << "Camera " << cam_idx << " FPS: " << m_frameCount[cam_idx] * 1000.0 / chrono::duration_cast<chrono::milliseconds>(elapsed).count() << endl;
+						m_frameCounterStart[cam_idx] = currentTime;
+						m_frameCount[cam_idx] = 0;
+					}
+				}
+				catch (...)
+				{
+					cout << "Error in requestCompleted callback for camera " << cam_idx << endl;
+				}
+
+				request->reuse(libcamera::Request::ReuseBuffers);
+				m_camera[cam_idx]->queueRequest(request);
+			});
+
+		int64_t delta_time = 1000000.0 / m_frameRate;
+		auto camcontrols = unique_ptr<libcamera::ControlList>(new libcamera::ControlList());
+		camcontrols->set(libcamera::controls::FrameDurationLimits, libcamera::Span<const int64_t, 2>({delta_time, delta_time}));
+			
+		if (camera->start(camcontrols.get()) < 0)
+		{
+			cout << "Failed to start camera " << cam_idx << endl;
+			return false;
+		}
+
+		return true;
 	}
+
 	Size DirectCamera::GetSize()
 	{
 		return m_imageSize;
 	}
-	bool DirectCamera::GetFrame(ImageInfo &out_imageInfo, int offset)
+	int DirectCamera::GetFrameRate()
 	{
-		if (offset < 0 || offset >= m_bufferSize)
+		return m_frameRate;
+	}
+	bool DirectCamera::GetFrame(ImageInfo &out_leftImageInfo, ImageInfo &out_rightImageInfo)
+	{
 		{
-			printf("Invalid offset valud\n");
-			return false;
+			unique_lock lock(m_bufferMutex[0]);
+			out_leftImageInfo = m_frameBuffer[0][m_bufferIndex[0]];
 		}
 
-		shared_lock lock(m_bufferMutex);
-		int lastBufferIndex = m_bufferIndex - offset;
-		if (lastBufferIndex < 0)
-			lastBufferIndex += m_bufferSize;
-		out_imageInfo = m_frameBuffer[lastBufferIndex];
+		{
+			unique_lock lock(m_bufferMutex[1]);
+			out_rightImageInfo = m_frameBuffer[1][m_bufferIndex[1]];
+		}
 
-		return out_imageInfo.IsSet;
+		return out_leftImageInfo.IsSet && out_rightImageInfo.IsSet;
 	}
 }

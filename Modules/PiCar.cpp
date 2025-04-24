@@ -24,7 +24,7 @@ namespace PiCar
 		{
 		case PICAR_MODE_DIRECT:
 		case PICAR_MODE_REMOTE:
-			isGood = initBasic() && initProtocol() && initRobotHat() && initEP0152() && initLD06(); // && initCamera();
+			isGood = initBasic() && initProtocol() && initRobotHat() && initEP0152() && initLD06() && initCamera();
 			break;
 		case PICAR_MODE_CAMERA:
 			isGood = initBasic() && initProtocol() && initEP0152() && initLD06() && initCamera();
@@ -145,16 +145,16 @@ namespace PiCar
 			printf("Fail to init steer motor module\n");
 			return false;
 		}
-		if (!m_cameraMotor.Init(defaultPitchAngle, defaultYawAngle))
-		{
-			printf("Fail to init camera motor module\n");
-			return false;
-		}
-		if (!m_sensors.Init())
-		{
-			printf("Fail to init sensors\n");
-			return false;
-		}
+		// if (!m_cameraMotor.Init(defaultPitchAngle, defaultYawAngle))
+		// {
+		// 	printf("Fail to init camera motor module\n");
+		// 	return false;
+		// }
+		// if (!m_sensors.Init())
+		// {
+		// 	printf("Fail to init sensors\n");
+		// 	return false;
+		// }
 
 		return true;
 	}
@@ -186,8 +186,8 @@ namespace PiCar
 	}
 	bool PiCar::initCamera()
 	{
-		int w = 1280;
-		int h = 960;
+		int w = 960;
+		int h = 720;
 		int bufSize = 120;
 		int frameRate = 30;
 		if (!m_cameraSensor.Init(w, h, bufSize, frameRate))
@@ -205,12 +205,12 @@ namespace PiCar
 	}
 	bool PiCar::updateCameraImage()
 	{
-		Camera::ImageInfo imgInfo;
-		if (!m_cameraSensor.GetFrame(imgInfo))
+		Camera::ImageInfo leftImageInfo, rightImageInfo;
+		if (!m_cameraSensor.GetFrame(leftImageInfo, rightImageInfo))
 			return false;
 
 		Mat concat_img;
-		hconcat(imgInfo.ImageLeft, imgInfo.ImageRight, concat_img);
+		hconcat(leftImageInfo.Image, rightImageInfo.Image, concat_img);
 
 		int speed = m_moveMotor.GetRearValue();
 		float steerDegree = m_moveMotor.GetSteerDegree();
@@ -414,6 +414,8 @@ namespace PiCar
 	}
 	void PiCar::subThreadFunc()
 	{
+		pthread_setname_np(pthread_self(), "Picar Subscriber Thread");
+
 		lastConnTime = chrono::steady_clock::now();
 		while (!m_isStop)
 		{
@@ -448,6 +450,8 @@ namespace PiCar
 	}
 	void PiCar::pubThreadFunc()
 	{
+		pthread_setname_np(pthread_self(), "Picar Publisher Thread");
+
 		while (!m_isStop)
 		{
 			string state = !m_isStop ? "RUNNING" : "STOP";

@@ -71,6 +71,8 @@ namespace LD06
 	}
 	void Lidar::reciveSerialDataThreadFunc()
 	{
+		pthread_setname_np(pthread_self(), "Lidar Data Generator Thread");
+
 		bool headerCheck = false;
 		bool verlenCheck = false;
 		int bufIdx = 2;

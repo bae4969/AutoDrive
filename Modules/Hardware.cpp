@@ -22,7 +22,6 @@ namespace Hardware
 	static const chrono::milliseconds MOTION_DALTA_DUATION = chrono::milliseconds(16);
 	static const chrono::milliseconds LCD_DALTA_DUATION = chrono::milliseconds(1000);
 	static const chrono::milliseconds LIDAR_DALTA_DUATION = chrono::milliseconds(33);
-	static const chrono::milliseconds CAMERA_DALTA_DUATION = chrono::milliseconds(33);
 
 	bool MoveMotor::Init(float defaultSteerAngle)
 	{
@@ -112,6 +111,8 @@ namespace Hardware
 	}
 	void MoveMotor::updateThreadFunc()
 	{
+		pthread_setname_np(pthread_self(), "Move Motor Updater Thread");
+
 		chrono::steady_clock::time_point start;
 
 		int curRearValue;
@@ -171,6 +172,8 @@ namespace Hardware
 	}
 	void MoveMotor::subThreadFunc()
 	{
+		pthread_setname_np(pthread_self(), "Move Motor Subscriber Thread");
+
 		chrono::steady_clock::time_point start;
 
 		while (!m_isStop)
@@ -214,6 +217,8 @@ namespace Hardware
 	}
 	void MoveMotor::pubThreadFunc()
 	{
+		pthread_setname_np(pthread_self(), "Move Motor Publisher Thread");
+
 		chrono::steady_clock::time_point start;
 		int curRearValue;
 		int tarRearValue;
@@ -365,6 +370,8 @@ namespace Hardware
 	}
 	void CameraMotor::updateThreadFunc()
 	{
+		pthread_setname_np(pthread_self(), "Camera Motor Updater Thread");
+
 		chrono::steady_clock::time_point start;
 
 		float curPitchDegree;
@@ -426,6 +433,8 @@ namespace Hardware
 	}
 	void CameraMotor::subThreadFunc()
 	{
+		pthread_setname_np(pthread_self(), "Camera Motor Subscriber Thread");
+
 		chrono::steady_clock::time_point start;
 		while (!m_isStop)
 		{
@@ -465,6 +474,8 @@ namespace Hardware
 	}
 	void CameraMotor::pubThreadFunc()
 	{
+		pthread_setname_np(pthread_self(), "Camera Motor Publisher Thread");
+
 		chrono::steady_clock::time_point start;
 		float curPitchDegree;
 		float tarPitchDegree;
@@ -633,6 +644,8 @@ namespace Hardware
 	}
 	void Sensors::updateThreadFunc()
 	{
+		pthread_setname_np(pthread_self(), "Sensors Updater Thread");
+
 		chrono::steady_clock::time_point start;
 
 		while (!m_isStop)
@@ -647,6 +660,8 @@ namespace Hardware
 	}
 	void Sensors::pubThreadFunc()
 	{
+		pthread_setname_np(pthread_self(), "Sensors Publisher Thread");
+
 		chrono::steady_clock::time_point start;
 		double sonicValue;
 		int floorLeftValue;
@@ -742,6 +757,8 @@ namespace Hardware
 
 	void LcdDisplay::updateThreadFunc()
 	{
+		pthread_setname_np(pthread_self(), "Lcd Updater Thread");
+
 		chrono::steady_clock::time_point start;
 		Mat displayImg = Mat::zeros(GetImageSize(), CV_8U);
 		char tempStrBuf[512];
@@ -811,6 +828,8 @@ namespace Hardware
 	}
 	void LcdDisplay::pubThreadFunc()
 	{
+		pthread_setname_np(pthread_self(), "Lcd Publisher Thread");
+
 		chrono::steady_clock::time_point start;
 		double cpuTemp;
 		int throttleState;
@@ -867,6 +886,8 @@ namespace Hardware
 
 	void LidarSensor::pubThreadFunc()
 	{
+		pthread_setname_np(pthread_self(), "Lidar Publisher Thread");
+
 		chrono::steady_clock::time_point start;
 
 		while (!m_isStop)
@@ -921,20 +942,20 @@ namespace Hardware
 	{
 		try
 		{
-			Camera::ImageInfo imageInfo;
-			if (!GetFrame(imageInfo))
+			Camera::ImageInfo leftImageInfo, rightImageInfo;
+			if (!GetFrame(leftImageInfo, rightImageInfo))
 				return;
 
-			int w = imageInfo.ImageLeft.cols;
-			int h = imageInfo.ImageLeft.rows;
-			int ch = imageInfo.ImageLeft.channels();
+			int w = leftImageInfo.Image.cols;
+			int h = leftImageInfo.Image.rows;
+			int ch = leftImageInfo.Image.channels();
 
 			zmq::multipart_t msg;
 			msg.addtyp(w);
 			msg.addtyp(h);
 			msg.addtyp(ch);
-			msg.addmem(imageInfo.ImageLeft.data, w * h * ch);
-			msg.addmem(imageInfo.ImageRight.data, w * h * ch);
+			msg.addmem(leftImageInfo.Image.data, w * h * ch);
+			msg.addmem(rightImageInfo.Image.data, w * h * ch);
 			m_pubSubClient.PublishMessage(msg);
 		}
 		catch (...)
@@ -946,8 +967,8 @@ namespace Hardware
 	{
 		try
 		{
-			Camera::ImageInfo imageInfo;
-			if (!GetFrame(imageInfo))
+			Camera::ImageInfo leftImageInfo, rightImageInfo;
+			if (!GetFrame(leftImageInfo, rightImageInfo))
 				return;
 
 			vector<int> encodeParas;
@@ -955,8 +976,8 @@ namespace Hardware
 			encodeParas.push_back(90); // 0...100 (higher is better)
 
 			vector<uchar> img_left_encoded, img_right_encoded;
-			cv::imencode(".jpg", imageInfo.ImageLeft, img_left_encoded, encodeParas);
-			cv::imencode(".jpg", imageInfo.ImageRight, img_right_encoded, encodeParas);
+			cv::imencode(".jpg", leftImageInfo.Image, img_left_encoded, encodeParas);
+			cv::imencode(".jpg", rightImageInfo.Image, img_right_encoded, encodeParas);
 
 			zmq::multipart_t msg;
 			msg.addmem(img_left_encoded.data(), img_left_encoded.size());
@@ -972,8 +993,8 @@ namespace Hardware
 	{
 		try
 		{
-			Camera::ImageInfo imageInfo;
-			if (!GetFrame(imageInfo))
+			Camera::ImageInfo leftImageInfo, rightImageInfo;
+			if (!GetFrame(leftImageInfo, rightImageInfo))
 				return;
 
 			vector<int> encodeParas;
@@ -981,8 +1002,8 @@ namespace Hardware
 			encodeParas.push_back(1); // 0~7
 
 			vector<uchar> img_left_encoded, img_right_encoded;
-			cv::imencode(".png", imageInfo.ImageLeft, img_left_encoded, encodeParas);
-			cv::imencode(".png", imageInfo.ImageRight, img_right_encoded, encodeParas);
+			cv::imencode(".jpg", leftImageInfo.Image, img_left_encoded, encodeParas);
+			cv::imencode(".jpg", rightImageInfo.Image, img_right_encoded, encodeParas);
 
 			zmq::multipart_t msg;
 			msg.addmem(img_left_encoded.data(), img_left_encoded.size());
@@ -996,28 +1017,18 @@ namespace Hardware
 	}
 	void CameraSensor::pubThreadFunc()
 	{
+		pthread_setname_np(pthread_self(), "Camera Sensor Publisher Thread");
+
 		chrono::steady_clock::time_point start;
-		vector<shared_ptr<thread>> threadPool(3, NULL);
-		int threadIdx = -1;
+		const chrono::milliseconds CAMERA_DALTA_DUATION = chrono::milliseconds((int)round(1000.0 / GetFrameRate()));
 
 		while (!m_isStop)
 		{
 			start = chrono::steady_clock::now();
 
-			threadIdx++;
-			if (threadIdx > 2)
-				threadIdx = 0;
-
-			if (threadPool[threadIdx])
-				threadPool[threadIdx]->join();
-
-			threadPool[threadIdx] = make_shared<thread>(&CameraSensor::pubJpgEncodedImage, this);
+			pubJpgEncodedImage();
 
 			this_thread::sleep_for(CAMERA_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
-
-		for (int i = 0; i < threadPool.size(); i++)
-			if (threadPool[i])
-				threadPool[i]->join();
 	}
 }
