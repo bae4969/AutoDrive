@@ -1,5 +1,6 @@
 #pragma once
 #include "Hardware.h"
+#include "INIParser.h"
 #include <opencv2/opencv.hpp>
 #include <atomic>
 #include <shared_mutex>
@@ -31,6 +32,8 @@ namespace PiCar
 
 		const std::chrono::milliseconds DALTA_DUATION = std::chrono::milliseconds(33);
 		const std::chrono::milliseconds CONNECTION_TIMEOUT = std::chrono::milliseconds(3000);
+
+		INIParser m_iniParser;
 		std::atomic<bool> m_isStop;
 		std::chrono::steady_clock::time_point lastConnTime;
 		cv::Mat imgBuffer;
@@ -51,6 +54,13 @@ namespace PiCar
 		bool initEP0152();
 		bool initLD06();
 		bool initCamera();
+		
+		void releaseBasic();
+		void releaseProtocol();
+		void releaseRobotHat();
+		void releaseEP0152();
+		void releaseLD06();
+		void releaseCamera();
 
 		void runDirectMode();
 		void runRemoteMode();
@@ -60,6 +70,7 @@ namespace PiCar
 		bool Init(PICAR_MODE mode);
 		void Release();
 
+		void Stop();
 		void Run();
 	};
 }

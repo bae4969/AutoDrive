@@ -18,6 +18,8 @@ namespace PiCar
 	bool PiCar::Init(PICAR_MODE mode)
 	{
 		m_curMode = PICAR_MODE_NOT_SET;
+		if (m_iniParser.Load("./AutoDrive.ini") == false)
+			printf("Fail to load config file, so use default settings.\n");
 
 		bool isGood = false;
 		switch (mode)
@@ -32,6 +34,20 @@ namespace PiCar
 		default:
 			isGood = false;
 		}
+
+		switch (mode)
+		{
+		case PICAR_MODE_DIRECT:
+			break;
+		case PICAR_MODE_REMOTE:
+		case PICAR_MODE_CAMERA:
+			m_subThread = thread(&PiCar::subThreadFunc, this);
+			m_pubThread = thread(&PiCar::pubThreadFunc, this);
+			break;
+		default:
+			isGood = false;
+		}
+
 		if (!isGood)
 		{
 			printf("Fail to init picar\n");
@@ -41,39 +57,6 @@ namespace PiCar
 		m_curMode = mode;
 		printf("Success to init PiCar\n");
 		return true;
-	}
-	void PiCar::Release()
-	{
-		switch (m_curMode)
-		{
-		case PICAR_MODE_DIRECT:
-			m_moveMotor.Release();
-			m_cameraMotor.Release();
-			m_sensors.Release();
-			m_display.Release();
-			m_lidar.Release();
-			m_cameraSensor.Release();
-			break;
-		case PICAR_MODE_REMOTE:
-			m_moveMotor.Release();
-			m_cameraMotor.Release();
-			m_sensors.Release();
-			m_display.Release();
-			m_lidar.Release();
-			m_cameraSensor.Release();
-			m_subThread.join();
-			m_pubThread.join();
-			break;
-		case PICAR_MODE_CAMERA:
-			m_display.Release();
-			m_lidar.Release();
-			m_cameraSensor.Release();
-			m_subThread.join();
-			m_pubThread.join();
-			break;
-		default:
-			break;
-		}
 	}
 	bool PiCar::initBasic()
 	{
@@ -93,12 +76,17 @@ namespace PiCar
 			return false;
 		}
 
+		string pub_port = m_iniParser.GetValue("protocal", "publish_port", "45000");
+		string sub_port = m_iniParser.GetValue("protocal", "subscribe_port", "45001");
+		string pub_ip = string("tcp://*:") + pub_port;
+		string sub_ip = string("tcp://*:") + sub_port;
+
 		vector<string> xPubConnStrs;
 		vector<string> xSubConnStrs;
 		xPubConnStrs.push_back(PROXY_XPUB_STR);
-		xPubConnStrs.push_back("tcp://*:45000");
+		xPubConnStrs.push_back(pub_ip);
 		xSubConnStrs.push_back(PROXY_XSUB_STR);
-		xSubConnStrs.push_back("tcp://*:45001");
+		xSubConnStrs.push_back(sub_ip);
 		if (!m_pubSubClient.Init(PROXY_XSUB_STR, PROXY_XPUB_STR) ||
 			!m_pubSubServer.Init(xPubConnStrs, xSubConnStrs))
 		{
@@ -112,28 +100,9 @@ namespace PiCar
 	}
 	bool PiCar::initRobotHat()
 	{
-		float defaultSteerAngle = 0.0f;
-		float defaultPitchAngle = 0.0f;
-		float defaultYawAngle = 0.0f;
-		FILE *file_r = fopen("CaliData.data", "r");
-		if (file_r)
-		{
-			fscanf(file_r, "STEER:%f\n", &defaultSteerAngle);
-			fscanf(file_r, "PITCH:%f\n", &defaultPitchAngle);
-			fscanf(file_r, "YAW:%f\n", &defaultYawAngle);
-			fclose(file_r);
-		}
-		else
-		{
-			FILE *file_w = fopen("CaliData.data", "w");
-			if (file_w)
-			{
-				fprintf(file_w, "STEER:0.0\n");
-				fprintf(file_w, "PITCH:0.0\n");
-				fprintf(file_w, "YAW:0.0\n");
-				fclose(file_w);
-			}
-		}
+		float defaultSteerAngle = m_iniParser.GetFloat("calibration", "steer_angle_offset", 0.);
+		float defaultPitchAngle = m_iniParser.GetFloat("calibration", "camera_pitch_angle_offset", 0.);
+		float defaultYawAngle = m_iniParser.GetFloat("calibration", "camera_yaw_angle_offset", 0.);
 
 		if (!RobotHat::InitRobotHat())
 		{
@@ -186,17 +155,80 @@ namespace PiCar
 	}
 	bool PiCar::initCamera()
 	{
-		int w = 960;
-		int h = 720;
-		int bufSize = 120;
-		int frameRate = 30;
-		if (!m_cameraSensor.Init(w, h, bufSize, frameRate))
+		int w = m_iniParser.GetInt("camera", "width", 960);
+		int h = m_iniParser.GetInt("camera", "height", 720);
+		int bufSize = m_iniParser.GetInt("camera", "buffer_length", 120);
+		int frameRate = m_iniParser.GetInt("camera", "frame_rate", 30);
+		bool is_record = m_iniParser.GetBool("camera", "is_record", false);
+		if (!m_cameraSensor.Init(w, h, bufSize, frameRate, is_record))
 		{
 			printf("Fail to init camera sensor module\n");
 			return false;
 		}
 
 		return true;
+	}
+
+	void PiCar::Release()
+	{
+		switch (m_curMode)
+		{
+		case PICAR_MODE_DIRECT:
+		case PICAR_MODE_REMOTE:
+			releaseCamera();
+			releaseLD06();
+			releaseEP0152();
+			releaseRobotHat();
+			releaseProtocol();
+			releaseBasic();
+			break;
+		case PICAR_MODE_CAMERA:
+			releaseCamera();
+			releaseLD06();
+			releaseEP0152();
+			releaseProtocol();
+			releaseBasic();
+			break;
+		default:
+			break;
+		}
+
+		switch (m_curMode)
+		{
+		case PICAR_MODE_DIRECT:
+			break;
+		case PICAR_MODE_REMOTE:
+		case PICAR_MODE_CAMERA:
+			m_subThread.join();
+			m_pubThread.join();
+			break;
+		default:
+			break;
+		}
+	}
+	void PiCar::releaseBasic()
+	{
+	}
+	void PiCar::releaseProtocol()
+	{
+	}
+	void PiCar::releaseRobotHat()
+	{
+		m_moveMotor.Release();
+		// m_cameraMotor.Release();
+		// m_sensors.Release();
+	}
+	void PiCar::releaseEP0152()
+	{
+		m_display.Release();
+	}
+	void PiCar::releaseLD06()
+	{
+		m_lidar.Release();
+	}
+	void PiCar::releaseCamera()
+	{
+		m_cameraSensor.Release();
 	}
 
 	bool PiCar::isConnected()
@@ -464,6 +496,11 @@ namespace PiCar
 		}
 	}
 
+	void PiCar::Stop()
+	{
+		m_moveMotor.StopRearNow();
+		m_isStop = true;
+	}
 	void PiCar::Run()
 	{
 		switch (m_curMode)
@@ -507,8 +544,6 @@ namespace PiCar
 	void PiCar::runRemoteMode()
 	{
 		m_isStop = false;
-		m_subThread = thread(&PiCar::subThreadFunc, this);
-		m_pubThread = thread(&PiCar::pubThreadFunc, this);
 
 		while (!m_isStop)
 		{
@@ -520,8 +555,6 @@ namespace PiCar
 	void PiCar::runCameraMode()
 	{
 		m_isStop = false;
-		m_subThread = thread(&PiCar::subThreadFunc, this);
-		m_pubThread = thread(&PiCar::pubThreadFunc, this);
 
 		while (!m_isStop)
 		{

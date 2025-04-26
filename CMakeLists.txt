@@ -34,6 +34,7 @@ target_link_libraries(AutoDrive
     opencv_imgproc
     opencv_highgui
     opencv_imgcodecs
+    opencv_videoio
     camera
     camera-base
 )

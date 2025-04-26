@@ -4,6 +4,7 @@
 #include <math.h>
 #include <boost/shared_ptr.hpp>
 #include <shared_mutex>
+#include <filesystem>
 
 #define REAR_MIN_VALUE -2000
 #define REAR_MAX_VALUE 2000
@@ -915,9 +916,10 @@ namespace Hardware
 		}
 	}
 
-	bool CameraSensor::Init(int w, int h, int bufSize, int frameRate)
+	bool CameraSensor::Init(int w, int h, int bufSize, int frameRate, bool is_record)
 	{
 		m_isStop = false;
+		m_isRecord = is_record;
 
 		if (!DirectCamera::Init(w, h, bufSize, frameRate))
 			return false;
@@ -930,12 +932,17 @@ namespace Hardware
 		m_pubSubClient.ChangePubTopic("STATE_CAMERA_SENSOR");
 		m_pubThread = thread(&CameraSensor::pubThreadFunc, this);
 
+		if (m_isRecord)
+			m_recordThread = thread(&CameraSensor::recordThreadFunc, this);
+
 		return true;
 	}
 	void CameraSensor::Release()
 	{
 		m_isStop = true;
 		m_pubThread.join();
+		if (m_isRecord)
+			m_recordThread.join();
 	}
 
 	void CameraSensor::pubRawEncodedImage()
@@ -1030,5 +1037,74 @@ namespace Hardware
 
 			this_thread::sleep_for(CAMERA_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
+	}
+	void CameraSensor::recordThreadFunc()
+	{
+		pthread_setname_np(pthread_self(), "Camera Sensor Record Thread");
+
+		chrono::system_clock::time_point start;
+		const chrono::milliseconds CAMERA_DELTA_DURATION = chrono::milliseconds((int)round(1000.0 / GetFrameRate()));
+
+		cv::VideoWriter videoWriter;
+		int lastSavedMinuteBlock = -1;
+		auto video_fps = GetFrameRate();
+		auto video_size = GetSize();
+		video_size.width *= 2;
+
+		if (!filesystem::exists("./record_data"))
+			filesystem::create_directories("./record_data");
+
+		for (int i = 0; i < 5 && !m_isStop; i++)
+			this_thread::sleep_for(chrono::seconds(1));
+
+		while (!m_isStop)
+		{
+			start = chrono::system_clock::now();
+
+			Camera::ImageInfo leftImageInfo, rightImageInfo;
+			if (!GetFrame(leftImageInfo, rightImageInfo))
+				return;
+
+			time_t now_c = chrono::system_clock::to_time_t(start);
+			tm timeinfo;
+			localtime_r(&now_c, &timeinfo);
+
+			int minuteBlock = (timeinfo.tm_min / 5) * 5;
+			if (minuteBlock != lastSavedMinuteBlock)
+			{
+				if (videoWriter.isOpened())
+					videoWriter.release();
+
+				string filename = cv::format(
+					"./record_data/record_%04d%02d%02d_%02d%02d.mp4",
+					timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+					timeinfo.tm_hour, minuteBlock);
+				string pipeline = cv::format(
+					"appsrc ! videoconvert ! x264enc tune=zerolatency bitrate=4000 speed-preset=ultrafast ! h264parse ! mp4mux ! filesink location=%s",
+					filename.c_str());
+				videoWriter.open(pipeline, CAP_GSTREAMER, 0, video_fps, video_size, true);
+				if (videoWriter.isOpened())
+				{
+					lastSavedMinuteBlock = minuteBlock;
+					printf("VideoWriter opened for %s\n", filename.c_str());
+				}
+				else
+					printf("Fail to open VideoWriter for %s\n", filename.c_str());
+			}
+
+			if (videoWriter.isOpened())
+			{
+				Mat concat_image;
+				hconcat(leftImageInfo.Image, rightImageInfo.Image, concat_image);
+				videoWriter.write(concat_image);
+			}
+
+			chrono::milliseconds elapsed = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now() - start);
+			if (elapsed < CAMERA_DELTA_DURATION)
+				this_thread::sleep_for(CAMERA_DELTA_DURATION - elapsed);
+		}
+
+		if (videoWriter.isOpened())
+			videoWriter.release();
 	}
 }

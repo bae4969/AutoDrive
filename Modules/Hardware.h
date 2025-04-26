@@ -166,15 +166,18 @@ namespace Hardware
 		Protocol::PubSubClient m_pubSubClient;
 
 		std::atomic<bool> m_isStop;
+		std::atomic<bool> m_isRecord;
 		std::thread m_pubThread;
+		std::thread m_recordThread;
 
 		void pubRawEncodedImage();
 		void pubJpgEncodedImage();
 		void pubPngEncodedImage();
 		void pubThreadFunc();
+		void recordThreadFunc();
 
 	public:
-		bool Init(int w = 1280, int h = 960, int bufSize = 120, int frameRate = 30);
+		bool Init(int w = 1280, int h = 960, int bufSize = 120, int frameRate = 30, bool is_record = false);
 		void Release();
 	};
 }

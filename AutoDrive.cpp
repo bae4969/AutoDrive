@@ -1,10 +1,24 @@
 #include "Modules/PiCar.h"
+#include <csignal>
 
 using namespace std;
 
-int main(int argc, char** argv)
+PiCar::PiCar car;
+
+void signalHandler(int signum)
 {
-    PiCar::PiCar car;
+    printf("\n");
+    printf("---------------------------------\n");
+    printf("|    Rised interrupt signal!    |\n");
+    printf("---------------------------------\n");
+    printf("\n");
+    car.Stop();
+}
+
+int main(int argc, char **argv)
+{
+    signal(SIGINT, signalHandler);
+
     try
     {
         PiCar::PICAR_MODE mode;
@@ -38,8 +52,26 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    car.Run();
-    car.Release();
+    try
+    {
+        car.Run();
+    }
+    catch (...)
+    {
+        printf("Fail to run PiCar\n");
+        return -3;
+    }
 
+    try
+    {
+        car.Release();
+    }
+    catch (...)
+    {
+        printf("Fail to release PiCar\n");
+        return -4;
+    }
+
+    printf("End of output\n");
     return 0;
 }
