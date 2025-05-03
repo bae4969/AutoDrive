@@ -9,7 +9,7 @@
 			"args": ["2"],
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}/build",
-			"externalConsole": true,
+			"externalConsole": false,
 			"MIMode": "gdb",
 			"miDebuggerPath": "/usr/bin/gdb",
 			"setupCommands": [
@@ -19,7 +19,7 @@
 					"ignoreFailures": true
 				}
 			],
-			"preLaunchTask": ""
+			"preLaunchTask": "CMake Build"
 		}
 	]
 }

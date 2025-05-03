@@ -7,8 +7,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O2")
 
 # 소스 파일 수집
 file(GLOB_RECURSE SOURCES
-    Modules/*.cpp
-    AutoDrive.cpp
+    src/Modules/*.cpp
+    src/AutoDrive.cpp
 )
 
 # 헤더 파일 포함 디렉토리

@@ -102,7 +102,7 @@ namespace Camera
 			printf("Fail to generate configuration for camera %d\n", cam_idx);
 			return false;
 		}
-		cameraConfig->at(0).pixelFormat = libcamera::formats::BGR888;
+		cameraConfig->at(0).pixelFormat = libcamera::formats::RGB888;
 		cameraConfig->at(0).size.width = static_cast<uint32_t>(m_imageSize.width);
 		cameraConfig->at(0).size.height = static_cast<uint32_t>(m_imageSize.height);
 		cameraConfig->at(0).bufferCount = 4;
