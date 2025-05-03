@@ -1043,10 +1043,11 @@ namespace Hardware
 		pthread_setname_np(pthread_self(), "Camera Sensor Record Thread");
 
 		chrono::system_clock::time_point start;
-		const chrono::milliseconds CAMERA_DELTA_DURATION = chrono::milliseconds((int)round(1000.0 / GetFrameRate()));
+		const auto CAMERA_DELTA_DURATION = chrono::milliseconds((int)round(1000.0 / GetFrameRate()));
+		const auto RECORD_FILE_DURATION = chrono::minutes(5);
 
 		cv::VideoWriter videoWriter;
-		int lastSavedMinuteBlock = -1;
+		auto last_record = chrono::system_clock::now() - RECORD_FILE_DURATION;
 		auto video_fps = GetFrameRate();
 		auto video_size = GetSize();
 		video_size.width *= 2;
@@ -1054,8 +1055,10 @@ namespace Hardware
 		if (!filesystem::exists("./record_data"))
 			filesystem::create_directories("./record_data");
 
-		for (int i = 0; i < 5 && !m_isStop; i++)
+		for (int i = 5; i > 0 && !m_isStop; i--){
+			printf("VideoWriter will start in %d seconds.\n", i);
 			this_thread::sleep_for(chrono::seconds(1));
+		}
 
 		while (!m_isStop)
 		{
@@ -1064,28 +1067,27 @@ namespace Hardware
 			Camera::ImageInfo leftImageInfo, rightImageInfo;
 			if (!GetFrame(leftImageInfo, rightImageInfo))
 				return;
-
-			time_t now_c = chrono::system_clock::to_time_t(start);
-			tm timeinfo;
-			localtime_r(&now_c, &timeinfo);
-
-			int minuteBlock = (timeinfo.tm_min / 5) * 5;
-			if (minuteBlock != lastSavedMinuteBlock)
+	
+			if (start - last_record > RECORD_FILE_DURATION)
 			{
 				if (videoWriter.isOpened())
 					videoWriter.release();
+					
+				time_t now_c = chrono::system_clock::to_time_t(start);
+				tm timeinfo;
+				localtime_r(&now_c, &timeinfo);
 
 				string filename = cv::format(
 					"./record_data/record_%04d%02d%02d_%02d%02d.mp4",
 					timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
-					timeinfo.tm_hour, minuteBlock);
+					timeinfo.tm_hour, timeinfo.tm_min);
 				string pipeline = cv::format(
 					"appsrc ! videoconvert ! x264enc tune=zerolatency bitrate=4000 speed-preset=ultrafast ! h264parse ! mp4mux ! filesink location=%s",
 					filename.c_str());
 				videoWriter.open(pipeline, CAP_GSTREAMER, 0, video_fps, video_size, true);
 				if (videoWriter.isOpened())
 				{
-					lastSavedMinuteBlock = minuteBlock;
+					last_record = start;
 					printf("VideoWriter opened for %s\n", filename.c_str());
 				}
 				else

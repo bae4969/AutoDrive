@@ -26,8 +26,8 @@ namespace Protocol
 		m_pubTopic = "NOT DEFINED";
 
 		m_subSocket->set(zmq::sockopt::rcvtimeo, 1);
-		m_subSocket->set(zmq::sockopt::rcvhwm, 20);
-		m_subSocket->set(zmq::sockopt::sndhwm, 20);
+		m_subSocket->set(zmq::sockopt::rcvhwm, 5);
+		m_pubSocket->set(zmq::sockopt::sndhwm, 5);
 
 		m_subSocket->connect(subConnStr);
 		m_pubSocket->connect(pubConnStr);
