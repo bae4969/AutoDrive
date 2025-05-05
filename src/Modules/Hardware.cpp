@@ -764,14 +764,15 @@ namespace Hardware
 		Mat displayImg = Mat::zeros(GetImageSize(), CV_8U);
 		char tempStrBuf[512];
 		char throStrBuf[512];
+		float temp = -1.f;
+		int thro = -1;
+		bool blink = false;
 
 		while (!m_isStop)
 		{
 			start = chrono::steady_clock::now();
 			displayImg.setTo(0);
 
-			float temp = -1.f;
-			int thro = -1;
 
 			FILE *tempFile = popen("vcgencmd measure_temp", "r");
 			FILE *throFile = popen("vcgencmd get_throttled", "r");
@@ -813,8 +814,9 @@ namespace Hardware
 				if (thro >= 0)
 					m_throttleState = thro;
 
-				m_ledFrontLeft.SetOutput(temp > 60.f);
-				m_ledFrontRight.SetOutput(m_throttleState & 0x12);
+				m_ledFrontLeft.SetOutput(temp > 60.f || m_throttleState & 0x12);
+				m_ledFrontRight.SetOutput(blink);
+				blink = !blink;
 				sprintf(tempStrBuf, "Temp : %.01f", m_cpuTemp);
 				sprintf(throStrBuf, "State : %X", m_throttleState);
 			}

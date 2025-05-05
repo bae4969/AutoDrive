@@ -76,10 +76,8 @@ namespace PiCar
 			return false;
 		}
 
-		string pub_port = m_iniParser.GetValue("protocal", "publish_port", "45000");
-		string sub_port = m_iniParser.GetValue("protocal", "subscribe_port", "45001");
-		string pub_ip = string("tcp://*:") + pub_port;
-		string sub_ip = string("tcp://*:") + sub_port;
+		string pub_ip = m_iniParser.GetValue("protocal", "publish_ip", "tcp://*:45000");
+		string sub_ip = m_iniParser.GetValue("protocal", "subscribe_ip", "tcp://*:45001");
 
 		vector<string> xPubConnStrs;
 		vector<string> xSubConnStrs;
