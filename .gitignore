@@ -1,5 +1,14 @@
+temp/
+build/
+install/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
 *.png
 *.o
-temp
-build/
-record_data/
+*.swp
+*.DS_Store
+*.user
+*.vcxproj*

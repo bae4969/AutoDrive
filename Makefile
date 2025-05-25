@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -std=c++20 -Wall -O2
 TARGET = AutoDrive
-SRCS = $(wildcard  src/Modules/*.cpp src/AutoDrive/*.cpp)
+SRCS = $(wildcard  src/Modules/*.cpp src/*.cpp)
 OBJS = $(SRCS:.cpp=.o)
 
 all: $(TARGET)
