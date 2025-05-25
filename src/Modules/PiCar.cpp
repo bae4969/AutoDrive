@@ -1,6 +1,4 @@
 #include "PiCar.h"
-#include <wiringPi.h>
-#include <wiringPiI2C.h>
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <math.h>

@@ -5,6 +5,7 @@
 #include <atomic>
 #include <thread>
 #include <boost/shared_ptr.hpp>
+#include <gpiod.h>
 
 namespace Basic
 {
@@ -34,8 +35,11 @@ namespace Basic
 		int m_pinIdx = -1;
 		std::atomic<bool> m_isOut;
 		std::atomic<int> m_isHigh;
+		struct gpiod_chip *m_chip = nullptr;
+		struct gpiod_line *m_line = nullptr;
 
 	public:
+		~GPIO();
 		bool Init(int pinIdx, bool isOut);
 		bool ChangeMode(bool isOut);
 		bool SetOutput(bool isHigh);
