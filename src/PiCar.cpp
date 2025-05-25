@@ -127,7 +127,6 @@ namespace PiCar
 	{
 		if (!EP0152::InitEP0152())
 		{
-
 			printf("Fail to init EP0152\n");
 			return false;
 		}

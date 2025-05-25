@@ -48,8 +48,14 @@ namespace Protocol
 	}
 	void PubSubClient::PublishMessage(zmq::multipart_t &msg)
 	{
-		msg.pushstr(m_pubTopic);
-		msg.send(*m_pubSocket);
+		try
+		{
+			msg.pushstr(m_pubTopic);
+			msg.send(*m_pubSocket);
+		}
+		catch (...)
+		{
+		}
 	}
 	void PubSubClient::AddSubTopic(std::string topic)
 	{
@@ -61,7 +67,14 @@ namespace Protocol
 	}
 	bool PubSubClient::SubscribeMessage(zmq::multipart_t &msg)
 	{
-		return msg.recv(*m_subSocket);
+		try
+		{
+			return msg.recv(*m_subSocket);
+		}
+		catch (...)
+		{
+			return false;
+		}
 	}
 
 	bool PubSubServer::Init(vector<string> xPubConnStrs, vector<string> xSubConnStrs)

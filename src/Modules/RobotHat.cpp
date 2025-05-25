@@ -16,7 +16,7 @@ namespace RobotHat
 
 	static shared_mutex i2cWriteMutex;
 	static int CAR_I2C_FD = -1;
-	static const int CAR_I2C_ADDRESS = 0x3C;
+	static const int CAR_I2C_ADDRESS = 0x14;
 
 	bool InitRobotHat()
 	{
@@ -42,8 +42,8 @@ namespace RobotHat
 			return false;
 		}
 
-		uint8_t buffer[2] = {0x2C};
-		if (write(CAR_I2C_FD, buffer, 1) != 1)
+		uint8_t buffer = 0x2C;
+		if (write(CAR_I2C_FD, &buffer, 1) != 1)
 		{
 			printf("Fail to init CAR I2C\n");
 			return false;

@@ -22,7 +22,6 @@ namespace EP0152
 
 	bool InitEP0152()
 	{
-
 		LCD_I2C_FD = open("/dev/i2c-1", O_RDWR);
 		if (LCD_I2C_FD < 0)
 		{
@@ -38,12 +37,7 @@ namespace EP0152
 			return false;
 		}
 
-		uint8_t buffer[2] = {0x2C};
-		if (write(LCD_I2C_FD, buffer, 1) != 1)
-		{
-			printf("Fail to init LCD I2C FD\n");
-			return false;
-		}
+		i2cWriteByte(LCD_I2C_FD, 0x00, 0xAE); // SSD1306_DISPLAY_OFF
 
 		return true;
 	}
