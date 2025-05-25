@@ -1,6 +1,9 @@
 #include "RobotHat.h"
 #include "Basic.h"
-#include <wiringPiI2C.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <linux/i2c-dev.h>
 #include <vector>
 #include <math.h>
 #include <chrono>
@@ -13,7 +16,7 @@ namespace RobotHat
 
 	static shared_mutex i2cWriteMutex;
 	static int CAR_I2C_FD = -1;
-	static const int CAR_I2C_ADDRESS = 0x14;
+	static const int CAR_I2C_ADDRESS = 0x3C;
 
 	bool InitRobotHat()
 	{
@@ -24,14 +27,23 @@ namespace RobotHat
 		rstMCU.SetOutput(true);
 		this_thread::sleep_for(chrono::milliseconds(300));
 
-		CAR_I2C_FD = wiringPiI2CSetupInterface("/dev/i2c-1", CAR_I2C_ADDRESS);
+		CAR_I2C_FD = open("/dev/i2c-1", O_RDWR);
 		if (CAR_I2C_FD < 0)
 		{
-			printf("Fail to init CAR I2C FD\n");
+			printf("Failed to open I2C bus");
 			return false;
 		}
 
-		if (wiringPiI2CWrite(CAR_I2C_FD, 0x2C) < 0)
+		if (ioctl(CAR_I2C_FD, I2C_SLAVE, CAR_I2C_ADDRESS) < 0)
+		{
+			printf("Failed to set I2C address");
+			close(CAR_I2C_FD);
+			CAR_I2C_FD = -1;
+			return false;
+		}
+
+		uint8_t buffer[2] = {0x2C};
+		if (write(CAR_I2C_FD, buffer, 1) != 1)
 		{
 			printf("Fail to init CAR I2C\n");
 			return false;
@@ -82,12 +94,13 @@ namespace RobotHat
 		}
 
 		int reg = PULSE_WIDTH_REG_OFFSET + m_channel;
-		int ret;
+		bool ret = false;
 		{
 			unique_lock lock(i2cWriteMutex);
-			ret = wiringPiI2CWriteReg16(CAR_I2C_FD, reg, convertBig2Little(value));
+			uint8_t data[3] = { static_cast<uint8_t>(reg), static_cast<uint8_t>(value >> 8), static_cast<uint8_t>(value & 0xFF) };
+			ret = write(CAR_I2C_FD, data, 3) == 3;
 		}
-		if (ret < 0)
+		if (ret == false)
 		{
 			printf("Fail to write CAR I2C %d pulse width\n", reg);
 			return false;
@@ -152,12 +165,13 @@ namespace RobotHat
 		}
 
 		int reg = PRESCALER_REG_OFFSET + m_group;
-		int ret;
+		bool ret = false;
 		{
 			unique_lock lock(i2cWriteMutex);
-			ret = wiringPiI2CWriteReg16(CAR_I2C_FD, reg, convertBig2Little(value));
+			uint8_t data[3] = { static_cast<uint8_t>(reg), static_cast<uint8_t>(value >> 8), static_cast<uint8_t>(value & 0xFF) };
+			ret = write(CAR_I2C_FD, data, 3) == 3;
 		}
-		if (ret < 0)
+		if (ret == false)
 		{
 			printf("Fail to write CAR I2C %d prescaler\n", reg);
 			return false;
@@ -175,12 +189,13 @@ namespace RobotHat
 		}
 
 		int reg = PERIOD_REG_OFFSET + m_group;
-		int ret;
+		bool ret = false;
 		{
 			unique_lock lock(i2cWriteMutex);
-			ret = wiringPiI2CWriteReg16(CAR_I2C_FD, reg, convertBig2Little(value));
+			uint8_t data[3] = { static_cast<uint8_t>(reg), static_cast<uint8_t>(value >> 8), static_cast<uint8_t>(value & 0xFF) };
+			ret = write(CAR_I2C_FD, data, 3) == 3;
 		}
-		if (ret < 0)
+		if (ret == false)
 		{
 			printf("Fail to write CAR I2C %d period\n", reg);
 			return false;
@@ -298,18 +313,20 @@ namespace RobotHat
 			return -1;
 		}
 
-		int ret;
-		int first;
-		int second;
+		bool ret = false;
+		int result = 0;
 		{
 			shared_lock lock(i2cWriteMutex);
-			ret = wiringPiI2CWriteReg16(CAR_I2C_FD, m_channel, 0);
-			first = wiringPiI2CRead(CAR_I2C_FD);
-			second = wiringPiI2CRead(CAR_I2C_FD);
+
+			uint8_t reg = m_channel;
+			ret = write(CAR_I2C_FD, &reg, 1) == 1;
+
+			uint8_t buf[2] = {0, 0};
+			ret &= read(CAR_I2C_FD, buf, 2) == 2;
+
+			result = (buf[0] << 8) | buf[1];
 		}
 
-		bool isGood = ret >= 0 || first >= 0 || second >= 0;
-
-		return isGood ? (first << 8) + second : -1;
+		return ret ? result : -1;
 	}
 }

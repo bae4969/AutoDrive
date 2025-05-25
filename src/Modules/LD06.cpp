@@ -1,6 +1,7 @@
 #include "LD06.h"
-#include <wiringPi.h>
-#include <wiringSerial.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <termios.h>
 #include <mutex>
 #include <shared_mutex>
 
@@ -35,10 +36,39 @@ namespace LD06
 	bool Lidar::Init()
 	{
 		m_fd = -1;
-		m_fd = serialOpen("/dev/ttyUSB0", 230400);
+		m_fd = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY | O_NONBLOCK);
 		if (m_fd < 0)
 		{
 			printf("Fail to open serial protocol for LD06\n");
+			return false;
+		}
+
+		struct termios tty = {};
+		if (tcgetattr(m_fd, &tty) != 0)
+		{
+			printf("Fail to tcgetattr serial protocol for LD06\n");
+			close(m_fd);
+			return false;
+		}
+
+		cfsetospeed(&tty, B230400);
+		cfsetispeed(&tty, B230400);
+
+		tty.c_cflag |= (CLOCAL | CREAD); // enable receiver, local mode
+		tty.c_cflag &= ~CSIZE;
+		tty.c_cflag |= CS8;								// 8-bit
+		tty.c_cflag &= ~PARENB;							// no parity
+		tty.c_cflag &= ~CSTOPB;							// 1 stop bit
+		tty.c_cflag &= ~CRTSCTS;						// no flow control
+		tty.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); // raw input
+		tty.c_iflag &= ~(IXON | IXOFF | IXANY);			// no software flow control
+		tty.c_oflag &= ~OPOST;							// raw output
+
+		tcflush(m_fd, TCIFLUSH);
+		if (tcsetattr(m_fd, TCSANOW, &tty) != 0)
+		{
+			printf("Fail to tcsetattr serial protocol for LD06\n");
+			close(m_fd);
 			return false;
 		}
 
@@ -52,9 +82,10 @@ namespace LD06
 		if (m_fd < 0)
 			return;
 
-		serialClose(m_fd);
 		m_isStop = true;
 		m_recvThread.join();
+		close(m_fd);
+		m_fd = -1;
 	}
 
 	bool Lidar::isValidData(int *data, int len)
@@ -84,14 +115,28 @@ namespace LD06
 		float diffDegree;
 		rawBuf[0] = 0x54;
 		rawBuf[1] = 0x2C;
+
+		uint8_t byte = 0;
+
 		while (!m_isStop)
 		{
-			int val = serialDataAvail(m_fd) ? serialGetchar(m_fd) : -1;
-			if (val < 0)
+			int n = read(m_fd, &byte, 1);
+			if (n < 0)
+			{
+				if (errno != EAGAIN && errno != EWOULDBLOCK)
+					perror("Serial read error");
+				this_thread::sleep_for(1ms);
+				continue;
+			}
+			else if (n == 0)
 			{
 				this_thread::sleep_for(1ms);
+				continue;
 			}
-			else if (val == 0x54 && !headerCheck && !verlenCheck)
+
+			int val = byte;
+
+			if (val == 0x54 && !headerCheck && !verlenCheck)
 			{
 				headerCheck = true;
 				verlenCheck = false;
@@ -119,6 +164,7 @@ namespace LD06
 				if (diffDegree < 0)
 					diffDegree += 360.f;
 				diffDegree /= 11.f;
+
 				for (int i = 0; i < 12; i++)
 				{
 					float curDeg = (diffDegree * i + startDegree);
@@ -129,6 +175,7 @@ namespace LD06
 					packetBuf[i].Distance = concatBytes(rawBuf[3 * i + 6], rawBuf[3 * i + 7]);
 					packetBuf[i].Intensity = rawBuf[3 * i + 8];
 				}
+
 				for (int i = 0; i < 12; i++)
 				{
 					LidarData t_data;
@@ -136,6 +183,7 @@ namespace LD06
 					t_data.Distance = packetBuf[i].Distance;
 					t_data.Intensity = packetBuf[i].Intensity;
 					localData.push_back(t_data);
+
 					if (i < 11 && packetBuf[i].Degree > packetBuf[i + 1].Degree)
 					{
 						{

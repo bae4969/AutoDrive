@@ -28,7 +28,6 @@ target_link_libraries(AutoDrive
     pthread
     m
     zmq
-    wiringPi
     gpiod
     opencv_core
     opencv_imgproc

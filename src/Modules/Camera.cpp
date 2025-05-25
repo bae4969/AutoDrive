@@ -62,10 +62,15 @@ namespace Camera
 			}
 		}
 
-		m_cameraManager.start();
+		if (m_cameraManager.start() < 0)
+		{
+			printf("Fail to start camera manager\n");
+			return false;
+		}
+
 		if (m_cameraManager.cameras().size() < 2)
 		{
-			printf("Two camera was not found\n");
+			printf("Two camera was not found [%d]\n", m_cameraManager.cameras().size());
 			return false;
 		}
 
@@ -184,7 +189,7 @@ namespace Camera
 		int64_t delta_time = 1000000.0 / m_frameRate;
 		auto camcontrols = unique_ptr<libcamera::ControlList>(new libcamera::ControlList());
 		camcontrols->set(libcamera::controls::FrameDurationLimits, libcamera::Span<const int64_t, 2>({delta_time, delta_time}));
-			
+
 		if (camera->start(camcontrols.get()) < 0)
 		{
 			printf("Failed to start camera %d\n", cam_idx);
