@@ -1,7 +1,6 @@
 #include "LD06.h"
-#include <fcntl.h>
-#include <unistd.h>
-#include <termios.h>
+#include <wiringPi.h>
+#include <wiringSerial.h>
 #include <mutex>
 #include <shared_mutex>
 
@@ -36,39 +35,10 @@ namespace LD06
 	bool Lidar::Init()
 	{
 		m_fd = -1;
-		m_fd = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY | O_NONBLOCK);
+		m_fd = serialOpen("/dev/ttyUSB0", 230400);
 		if (m_fd < 0)
 		{
 			printf("Fail to open serial protocol for LD06\n");
-			return false;
-		}
-
-		struct termios tty = {};
-		if (tcgetattr(m_fd, &tty) != 0)
-		{
-			printf("Fail to tcgetattr serial protocol for LD06\n");
-			close(m_fd);
-			return false;
-		}
-
-		cfsetospeed(&tty, B230400);
-		cfsetispeed(&tty, B230400);
-
-		tty.c_cflag |= (CLOCAL | CREAD); // enable receiver, local mode
-		tty.c_cflag &= ~CSIZE;
-		tty.c_cflag |= CS8;								// 8-bit
-		tty.c_cflag &= ~PARENB;							// no parity
-		tty.c_cflag &= ~CSTOPB;							// 1 stop bit
-		tty.c_cflag &= ~CRTSCTS;						// no flow control
-		tty.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); // raw input
-		tty.c_iflag &= ~(IXON | IXOFF | IXANY);			// no software flow control
-		tty.c_oflag &= ~OPOST;							// raw output
-
-		tcflush(m_fd, TCIFLUSH);
-		if (tcsetattr(m_fd, TCSANOW, &tty) != 0)
-		{
-			printf("Fail to tcsetattr serial protocol for LD06\n");
-			close(m_fd);
 			return false;
 		}
 
@@ -84,7 +54,7 @@ namespace LD06
 
 		m_isStop = true;
 		m_recvThread.join();
-		close(m_fd);
+		serialClose(m_fd);
 		m_fd = -1;
 	}
 
@@ -116,27 +86,15 @@ namespace LD06
 		rawBuf[0] = 0x54;
 		rawBuf[1] = 0x2C;
 
-		uint8_t byte = 0;
-
 		while (!m_isStop)
 		{
-			int n = read(m_fd, &byte, 1);
-			if (n < 0)
-			{
-				if (errno != EAGAIN && errno != EWOULDBLOCK)
-					perror("Serial read error");
-				this_thread::sleep_for(1ms);
-				continue;
-			}
-			else if (n == 0)
+			int val = serialDataAvail(m_fd) ? serialGetchar(m_fd) : -1;
+			if (val < 0)
 			{
 				this_thread::sleep_for(1ms);
 				continue;
 			}
-
-			int val = byte;
-
-			if (val == 0x54 && !headerCheck && !verlenCheck)
+			else if (val == 0x54 && !headerCheck && !verlenCheck)
 			{
 				headerCheck = true;
 				verlenCheck = false;

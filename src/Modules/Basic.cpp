@@ -1,101 +1,84 @@
 #include "Basic.h"
-#include <gpiod.h>
+#include <wiringPi.h>
 
 namespace Basic
 {
 	using namespace std;
 
+	static bool IsSetGPIO = false;
+
 	bool InitBasic()
 	{
+		IsSetGPIO = wiringPiSetup() == 0;
+		if (!IsSetGPIO)
+		{
+			printf("Fail to init GPIO\n");
+			return false;
+		}
+
 		return true;
 	}
 
-	GPIO::~GPIO()
-	{
-		if (m_line)
-			gpiod_line_release(m_line);
-		if (m_chip)
-			gpiod_chip_close(m_chip);
-		m_line = nullptr;
-		m_chip = nullptr;
-	}
 	bool GPIO::Init(int pinIdx, bool isOut)
 	{
+		if (!IsSetGPIO)
+		{
+			printf("GPIO is not initialized\n");
+			return false;
+		}
+
+		pinMode(pinIdx, isOut);
 		m_pinIdx = pinIdx;
 		m_isOut = isOut;
-
-		m_chip = gpiod_chip_open_by_name("gpiochip0");
-		if (!m_chip)
-		{
-			printf("Failed to open gpiochip0");
-			return false;
-		}
-
-		m_line = gpiod_chip_get_line(m_chip, m_pinIdx);
-		if (!m_line)
-		{
-			printf("Failed to get GPIO line");
-			return false;
-		}
-
-		struct gpiod_line_request_config config = {
-			.consumer = "RobotHat",
-			.request_type = m_isOut ? GPIOD_LINE_REQUEST_DIRECTION_OUTPUT : GPIOD_LINE_REQUEST_DIRECTION_INPUT,
-			.flags = 0};
-		int ret = gpiod_line_request(m_line, &config, 0);
-		if (ret < 0)
-		{
-			printf("Failed to request GPIO line");
-			return false;
-		}
 
 		return true;
 	}
 	bool GPIO::ChangeMode(bool isOut)
 	{
+		if (!IsSetGPIO)
+		{
+			printf("GPIO is not setted\n");
+			return false;
+		}
+
 		if (m_pinIdx < 0)
 		{
 			printf("This GPIO %d is not init\n", m_pinIdx);
 			return false;
 		}
 
-		struct gpiod_line_request_config config = {
-			.consumer = "RobotHat",
-			.request_type = isOut ? GPIOD_LINE_REQUEST_DIRECTION_OUTPUT : GPIOD_LINE_REQUEST_DIRECTION_INPUT,
-			.flags = 0};
-		int ret = gpiod_line_request(m_line, &config, 0);
-		if (ret < 0)
-		{
-			printf("Failed to request GPIO line");
-			return false;
-		}
-
+		pinMode(m_pinIdx, isOut);
 		m_isOut = isOut;
 
 		return true;
 	}
 	bool GPIO::SetOutput(bool isHigh)
 	{
+		if (!IsSetGPIO)
+		{
+			printf("GPIO is not setted\n");
+			return false;
+		}
+
 		if (!m_isOut)
 		{
 			printf("This GPIO %d is not out mode\n", m_pinIdx);
 			return false;
 		}
 
-		int val = isHigh ? 1 : 0;
-		int ret = gpiod_line_set_value(m_line, val);
-		if (ret < 0)
-		{
-			printf("Failed to set GPIO %d value", m_pinIdx);
-			return false;
-		}
-
-		m_isHigh = val;
+		digitalWrite(m_pinIdx, isHigh);
+		m_isHigh = isHigh;
 
 		return true;
 	}
 	int GPIO::GetOutput()
 	{
+		if (!IsSetGPIO)
+		{
+			printf("GPIO is not setted\n");
+			return false;
+		}
+
 		if (!m_isOut)
 		{
 			printf("This GPIO %d is not out mode\n", m_pinIdx);
@@ -106,20 +89,19 @@ namespace Basic
 	}
 	int GPIO::GetInput()
 	{
+		if (!IsSetGPIO)
+		{
+			printf("GPIO is not setted\n");
+			return false;
+		}
+
 		if (m_isOut)
 		{
 			printf("This GPIO %d is not in mode\n", m_pinIdx);
 			return -1;
 		}
 
-		int value = gpiod_line_get_value(m_line);
-		if (value < 0)
-		{
-			perror("Failed to read GPIO value");
-			return -1;
-		}
-
-		m_isHigh = value;
+		m_isHigh = digitalRead(m_pinIdx);
 
 		return m_isHigh;
 	}
