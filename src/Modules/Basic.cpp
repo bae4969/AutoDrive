@@ -24,7 +24,7 @@ namespace Basic
 		m_pinIdx = pinIdx;
 		m_isOut = isOut;
 
-		m_chip = gpiod_chip_open("/dev/gpiochip0");
+		m_chip = gpiod_chip_open_by_name("gpiochip0");
 		if (!m_chip)
 		{
 			printf("Failed to open gpiochip0");
@@ -35,20 +35,17 @@ namespace Basic
 		if (!m_line)
 		{
 			printf("Failed to get GPIO line");
-			gpiod_chip_close(m_chip);
 			return false;
 		}
 
 		struct gpiod_line_request_config config = {
 			.consumer = "RobotHat",
 			.request_type = m_isOut ? GPIOD_LINE_REQUEST_DIRECTION_OUTPUT : GPIOD_LINE_REQUEST_DIRECTION_INPUT,
-			.flags = 0
-		};
+			.flags = 0};
 		int ret = gpiod_line_request(m_line, &config, 0);
 		if (ret < 0)
 		{
 			printf("Failed to request GPIO line");
-			gpiod_chip_close(m_chip);
 			return false;
 		}
 
@@ -65,13 +62,11 @@ namespace Basic
 		struct gpiod_line_request_config config = {
 			.consumer = "RobotHat",
 			.request_type = isOut ? GPIOD_LINE_REQUEST_DIRECTION_OUTPUT : GPIOD_LINE_REQUEST_DIRECTION_INPUT,
-			.flags = 0
-		};
+			.flags = 0};
 		int ret = gpiod_line_request(m_line, &config, 0);
 		if (ret < 0)
 		{
 			printf("Failed to request GPIO line");
-			gpiod_chip_close(m_chip);
 			return false;
 		}
 
