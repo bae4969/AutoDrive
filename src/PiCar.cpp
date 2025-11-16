@@ -115,11 +115,11 @@ namespace PiCar
 		// 	printf("Fail to init camera motor module\n");
 		// 	return false;
 		// }
-		// if (!m_sensors.Init())
-		// {
-		// 	printf("Fail to init sensors\n");
-		// 	return false;
-		// }
+		if (!m_sensors.Init())
+		{
+			printf("Fail to init sensors\n");
+			return false;
+		}
 
 		return true;
 	}
