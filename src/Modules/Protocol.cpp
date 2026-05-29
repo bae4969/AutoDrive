@@ -77,12 +77,28 @@ namespace Protocol
 		}
 	}
 
-	bool PubSubServer::Init(vector<string> xPubConnStrs, vector<string> xSubConnStrs)
+	bool PubSubServer::Init(vector<string> xPubConnStrs, vector<string> xSubConnStrs,
+							bool enableCurve, const string &curveSecretKey)
 	{
 		m_xSubSocket = make_shared<zmq::socket_t>(*CONTEXT, zmq::socket_type::xsub);
 		m_xPubSocket = make_shared<zmq::socket_t>(*CONTEXT, zmq::socket_type::xpub);
 		m_xPubSocket->set(zmq::sockopt::rcvhwm, 20);
 		m_xSubSocket->set(zmq::sockopt::sndhwm, 20);
+
+		// Encrypt external (tcp) connections with CURVE. inproc peers (internal modules) are
+		// in-process and bypass the security handshake, so they keep working unchanged.
+		if (enableCurve)
+		{
+			if (curveSecretKey.size() != 40)
+				printf("CURVE enabled but server secret key invalid (need 40-char Z85) - running PLAINTEXT\n");
+			else
+			{
+				m_xSubSocket->set(zmq::sockopt::curve_server, true);
+				m_xSubSocket->set(zmq::sockopt::curve_secretkey, curveSecretKey);
+				m_xPubSocket->set(zmq::sockopt::curve_server, true);
+				m_xPubSocket->set(zmq::sockopt::curve_secretkey, curveSecretKey);
+			}
+		}
 
 		for (string xSubConnStr : xSubConnStrs)
 			m_xSubSocket->bind(xSubConnStr);

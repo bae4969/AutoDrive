@@ -41,6 +41,7 @@ VS Code 작업으로도 가능: Task "CMake Build".
 - `[protocal]`(오타 그대로 사용): `publish_ip` 기본 `tcp://*:45000`, `subscribe_ip` 기본 `tcp://*:45001`.
 - `[calibration]`: `steer_angle_offset`, `camera_pitch_angle_offset`, `camera_yaw_angle_offset`(deg). 서보 매핑에 오프셋 적용.
 - `[camera]`: `width`, `height`, `buffer_length`, `frame_rate`, `is_record`(GStreamer로 파일 기록).
+- `[security]`: `enable_curve`(외부 TCP를 ZMQ CURVE로 암호화), `curve_server_public_key`/`curve_server_secret_key`(40자 Z85). secret_key는 `install/AutoDrive.ini`(gitignore)에만 두고 커밋 금지.
 
 ## Messaging (ZeroMQ multipart)
 퍼블리셔는 `ChangePubTopic("STATE_*")`, 커맨드 수신자는 `AddSubTopic("COMMAND_*")`를 사용합니다. 공통 규약: [topic, command, type, payloads...]. 자세한 구현은 `src/Modules/Hardware.cpp` 참고.
@@ -89,6 +90,6 @@ VS Code 작업으로도 가능: Task "CMake Build".
 
 ## Notes
 - 카메라 전송은 JPEG로 퍼블리시합니다(네트워크 대역폭 최적화). Raw/PNG 경로는 헬퍼가 있으나 기본 퍼블리셔는 JPEG입니다.
-- 원격 클라이언트는 TCP 소켓(`publish_ip`/`subscribe_ip`)로 상태 구독과 명령 발행이 가능합니다.
+- 원격 클라이언트는 TCP 소켓(`publish_ip`/`subscribe_ip`)로 상태 구독과 명령 발행이 가능합니다. `[security] enable_curve=true`면 클라이언트도 CURVE로 접속해야 합니다(평문 차단): `curve_serverkey`=서버 공개키, `curve_publickey`/`curve_secretkey`=클라이언트 키페어(`zmq_curve_keypair`로 생성).
 
 

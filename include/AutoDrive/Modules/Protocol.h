@@ -34,7 +34,8 @@ namespace Protocol
 		std::shared_ptr<zmq::socket_t> m_xPubSocket = NULL;
 
 	public:
-		bool Init(std::vector<std::string> xPubConnStrs, std::vector<std::string> xSubConnStrs);
+		bool Init(std::vector<std::string> xPubConnStrs, std::vector<std::string> xSubConnStrs,
+				  bool enableCurve = false, const std::string &curveSecretKey = "");
 		~PubSubServer();
 	};
 }

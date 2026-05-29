@@ -77,6 +77,10 @@ namespace PiCar
 		string pub_ip = m_iniParser.GetValue("protocal", "publish_ip", "tcp://*:45000");
 		string sub_ip = m_iniParser.GetValue("protocal", "subscribe_ip", "tcp://*:45001");
 
+		bool enableCurve = m_iniParser.GetBool("security", "enable_curve", false);
+		string curveSecretKey = m_iniParser.GetValue("security", "curve_server_secret_key", "");
+		string curvePublicKey = m_iniParser.GetValue("security", "curve_server_public_key", "");
+
 		vector<string> xPubConnStrs;
 		vector<string> xSubConnStrs;
 		xPubConnStrs.push_back(PROXY_XPUB_STR);
@@ -84,11 +88,13 @@ namespace PiCar
 		xSubConnStrs.push_back(PROXY_XSUB_STR);
 		xSubConnStrs.push_back(sub_ip);
 		if (!m_pubSubClient.Init(PROXY_XSUB_STR, PROXY_XPUB_STR) ||
-			!m_pubSubServer.Init(xPubConnStrs, xSubConnStrs))
+			!m_pubSubServer.Init(xPubConnStrs, xSubConnStrs, enableCurve, curveSecretKey))
 		{
 			printf("Fail to init proxy server\n");
 			return false;
 		}
+		if (enableCurve)
+			printf("External comms secured with CURVE. Server public key: %s\n", curvePublicKey.c_str());
 		m_pubSubClient.AddSubTopic("COMMAND_PICAR");
 		m_pubSubClient.ChangePubTopic("STATE_PICAR");
 
