@@ -1,4 +1,6 @@
 #include "PiCar.h"
+#include "Logger.h"
+#include "INIParser.h"
 #include <csignal>
 
 using namespace std;
@@ -17,6 +19,14 @@ void signalHandler(int signum)
 
 int main(int argc, char **argv)
 {
+    INIParser iniParser;
+    iniParser.Load("./AutoDrive.ini");
+    Logger::InitLogger(
+        iniParser.GetValue("logging", "file_path", "logs/autodrive.log"),
+        iniParser.GetInt("logging", "file_size_kb", 1024),
+        iniParser.GetInt("logging", "rotated_files", 1));
+    LOG_INFO("AutoDrive starting (argc={})", argc);
+
     signal(SIGINT, signalHandler);
 
     try

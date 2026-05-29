@@ -1,6 +1,7 @@
 .vscode/
 
 temp/
+logs/
 build/
 install/
 CMakeFiles/

@@ -22,6 +22,11 @@ include_directories(
 
 add_executable(AutoDrive ${SOURCES})
 
+target_compile_definitions(AutoDrive PRIVATE
+    SPDLOG_COMPILED_LIB
+    SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG
+)
+
 target_link_libraries(AutoDrive
     stdc++
     atomic
@@ -29,6 +34,8 @@ target_link_libraries(AutoDrive
     m
     zmq
     wiringPi
+    spdlog
+    fmt
     opencv_core
     opencv_imgproc
     opencv_highgui
