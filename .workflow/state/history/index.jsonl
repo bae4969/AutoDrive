@@ -4,3 +4,4 @@
 {"run_id":"2026-05-29T20-48-43__claude__find-picar-x-cad","engine":"claude","status":"done","mode":"lite","request":"PiCar-X CAD 파일 웹 탐색·다운로드","files_changed":8,"retry_count":0,"final_verdict":"Pass"}
 {"run_id":"2026-05-29T21-09-20__claude__add-spdlog-logging-2mb-cap","engine":"claude","status":"done","mode":"lite","request":"spdlog 로깅 라이브러리 추가(최근 2MB 유지)","files_changed":4,"retry_count":0,"final_verdict":"Pass"}
 {"run_id":"2026-05-29T21-40-13__claude__ini-ify-logging-config","engine":"claude","status":"done","mode":"lite","request":"임시물 정리 + 로그 설정 ini화([logging] 섹션)","files_changed":5,"retry_count":0,"final_verdict":"Pass"}
+{"run_id":"2026-05-29T22-15-46__claude__secure-external-comms-zmq-curve","engine":"claude","status":"done","mode":"lite","request":"외부 TCP 통신 ZMQ CURVE 암호화(하드 컷오버, 익명)","files_changed":5,"retry_count":0,"final_verdict":"Pass"}

@@ -1,0 +1,13 @@
+{
+  "run_id": "2026-05-29T22-15-46__claude__secure-external-comms-zmq-curve",
+  "engine": "claude",
+  "started_at": "2026-05-29T22:15:46+09:00",
+  "completed_at": "2026-05-29T22:15:46+09:00",
+  "status": "done",
+  "mode": "lite",
+  "request": "외부로 나가는 통신을 보안 통신으로. AskUser 확정: ZMQ CURVE 암호화 / 하드 컷오버 / 암호화만(익명, ZAP 없음).",
+  "plan_summary": "PubSubServer 프록시의 외부 tcp(45000/45001) XSUB·XPUB 소켓에 ZMQ CURVE(curve_server+curve_secretkey) 적용, bind 이전 설정. 내부 inproc 모듈은 무수정(in-process라 보안 우회) — 표준 프로브로 공존 실측. 서버 키페어 생성, secret은 gitignore되는 install/AutoDrive.ini [security]에만, public은 클라이언트 배포+startup 출력. doc 템플릿은 enable_curve=false+빈 키. README에 클라이언트 CURVE 접속법 추가.",
+  "retry_count": 0,
+  "final_verdict": "Pass",
+  "report_body": "## 완료 보고 (lite)\n\n### 한 일\n- include/AutoDrive/Modules/Protocol.h: PubSubServer::Init에 (bool enableCurve=false, const std::string &curveSecretKey=\"\") 추가.\n- src/Modules/Protocol.cpp: Init에서 bind 이전에 enableCurve && key.size()==40이면 XSUB·XPUB 둘 다 curve_server+curve_secretkey 설정. 길이!=40이면 경고+평문. 내부 inproc 무수정.\n- src/PiCar.cpp initProtocol: ini [security] enable_curve/secret/public 읽어 전달, enableCurve면 public key stdout 출력(secret 미출력).\n- install/AutoDrive.ini(.gitignore): [security] enable_curve=true + 40자 Z85 키페어(public+secret).\n- doc/AutoDrive.ini(추적): [security] enable_curve=false + 빈 키 + 주석(secret 비노출).\n- README.md: [security] 섹션 + 클라이언트 CURVE 접속법(curve_serverkey/publickey/secretkey).\n- 기존 [protocal] 섹션명·포트(45000/45001) 무변경(하드 컷오버=같은 포트 CURVE 필수).\n\n### 자동 검증 결과\n- critic verdict: Pass (recommend_full: true)\n- critic 사유: CURVE 4속성(bind 전 설정·XSUB/XPUB 양쪽·inproc 공존·평문 tcp 거부) 실키 프로브로 실측 확인. secret 비노출 git ls-files/check-ignore/grep/diff로 검증(install/ gitignore가 핵심). 익명(ZAP 없음) 선택대로. 호출처 PiCar.cpp 갱신, 기본인자라 시그니처 호환. graceful(키 오류시 경고+평문). 빌드 exit0 신규경고0. untouchable([protocal]/포트/calibration/핀맵/REG_OFFSET) 무변경. Warning 2건(비차단): INIParser ; 주석절단은 Z85에 ;가 없어 실제 불가(메인 확인) / PiCar.cpp:106-107 unused는 기존 레거시 무관. recommend_full=true는 되돌리란 뜻 아니라 향후 보안확장(ZAP/로테이션/클라측)은 /full 권고.\n- 실행 테스트: cmake --build exit 0. inproc+CURVE 공존 프로브 PASS. 실제 install ini 키 e2e: public 내부 = 포함 40자 정확 파싱, CURVE 클라 수신 YES, 평문 거부 NO, exit 0.\n\n### 사용자가 확인할 것 (수동, 로봇 구동 동반)\n- [ ] ./install/AutoDrive 2|3 → stdout 'External comms secured with CURVE. Server public key: uBQ)%>...' → 외부 클라가 curve_serverkey=그 공개키, 클라 키페어로 접속해 구독/명령 정상.\n- [ ] 기존 평문 클라이언트 45000/45001 접속 → 데이터 수신 0(핸드셰이크 실패) = 평문 차단 확인.\n- [ ] enable_curve=false 폴백 → 평문 정상 동작(기존 회귀 없음).\n- [ ] secret을 39자로 훼손 → 'invalid ... running PLAINTEXT' 경고+무크래시.\n\n### 알려진 한계 / 후속\n- 익명 암호화 — 접근제어(누가 조종) 없음. 서버 공개키 아는 클라는 누구나 명령 가능. 접근제어 필요시 ZAP 클라이언트 화이트리스트 후속(/full 권장).\n- 외부 클라이언트(별도 앱, 이 repo 밖)는 사용자가 CURVE 접속으로 업데이트 필요(하드 컷오버).\n- 키 로테이션·키 자동생성 툴 미구현."
+}
