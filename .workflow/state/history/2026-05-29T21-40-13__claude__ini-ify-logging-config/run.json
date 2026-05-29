@@ -1,0 +1,13 @@
+{
+  "run_id": "2026-05-29T21-40-13__claude__ini-ify-logging-config",
+  "engine": "claude",
+  "started_at": "2026-05-29T21:40:13+09:00",
+  "completed_at": "2026-05-29T21:40:13+09:00",
+  "status": "done",
+  "mode": "lite",
+  "request": "정리하고 ini로 빼줘 = (1) 이전 턴 임시 진단 프로브 정리, (2) 로그 설정(경로/크기)을 AutoDrive.ini로 외부화.",
+  "plan_summary": "임시 프로브 3종(temp/battery_probe.cpp, temp/ini_battery_check.cpp, temp/output/battery_probe.log) 삭제. AutoDrive.ini에 [logging] 섹션(file_path/file_size_kb/rotated_files) 추가. Logger::InitLogger를 파라미터화(path,sizeKB,rotated). main()에서 INIParser로 [logging] 읽어 전달. 2MB는 기본값(1024KB×(1+1))로 유지, 런타임 튜닝 가능.",
+  "retry_count": 0,
+  "final_verdict": "Pass",
+  "report_body": "## 완료 보고 (lite)\n\n### 한 일\n- 정리: temp/battery_probe.cpp, temp/ini_battery_check.cpp, temp/output/battery_probe.log 삭제(이전 턴 임시 진단물). temp/는 input/output 빈 워크스페이스만 잔존.\n- install/AutoDrive.ini, doc/AutoDrive.ini: [logging] 섹션 추가 (file_path=logs/autodrive.log, file_size_kb=1024, rotated_files=1 + 총보관량=(rotated_files+1)×file_size_kb=2MB 주석). 기존 섹션 무변경.\n- include/AutoDrive/Modules/Logger.h: InitLogger() -> InitLogger(const std::string &filePath, int fileSizeKB, int rotatedFiles), #include <string>.\n- src/Modules/Logger.cpp: 하드코딩 상수 제거, 파라미터 사용. maxBytes=(fileSizeKB>0?:1024)*1024, maxFiles=(rotatedFiles>=0?:1) 가드. 콘솔/level/flush/패턴 동일.\n- src/AutoDrive.cpp: #include INIParser.h. main()에서 INIParser로 ./AutoDrive.ini 로드 후 GetValue/GetInt로 [logging] 읽어 InitLogger(path,sizeKB,rotated) 전달.\n\n### 자동 검증 결과\n- critic verdict: Pass (recommend_full: false)\n- critic 사유: (a)임시 프로브 3종 삭제 확인, (b)[logging] ini화 + 기존섹션 무변경, (c)ini값 실제적용+부재시 기본값 폴백 안전, (d)2MB 기본 유지, 빌드 exit0 신규경고0, InitLogger 유일호출처(AutoDrive.cpp) 갱신 grep확인, 가드 정확성 spdlog 소스 대조(max_size==0 throw를 fileSizeKB>0 가드가 차단). Warning 2건(비차단): rotated_files 상한(200000) 미가드 — spdlog가 catch하고 추가가드는 과방어라 현상태 적절 / git status의 CMakeLists·Hardware·PiCar 변경은 이전턴 미커밋 잔재로 이번작업 무관(grep 0건 확인).\n- 실행 테스트: cmake --build build --parallel -> exit 0, Linking. Logger.cpp/AutoDrive.cpp發 신규경고 0.\n- ini 커스텀값 구동 standalone 검증: 테스트ini(file_size_kb=256,rotated_files=2,커스텀경로) -> 40000줄 -> 3파일(app.log+app.1.log+app.2.log, 커스텀경로) 총 734,276 < 786,432(768KB). 비기본값이 경로·캡을 정확히 제어함 확인.\n\n### 사용자가 확인할 것 (수동 테스트 체크리스트)\n- [ ] cd install && ./AutoDrive 1 짧게 -> install/logs/autodrive.log 생성, 2MB 도달 전 autodrive.1.log 회전.\n- [ ] AutoDrive.ini의 file_path 변경 후 실행 -> 해당 경로에 로그(런타임 튜닝).\n- [ ] [logging] 섹션 제거 후 실행 -> 크래시 없이 기본 logs/autodrive.log·2MB 폴백.\n- [ ] 콘솔 컬러 로그·[file:line] 패턴 기존과 동일.\n\n### 알려진 한계 / 후속\n- 인프라만 — 기존 printf 110개 미전환(필요시 점진 LOG_* 추가).\n- 이번 턴 포함 그간 lite 변경들(배터리·spdlog·로깅 ini)이 모두 미커밋 상태 — 커밋은 사용자 요청 시.\n- .gitignore의 logs/는 세션 시작 전 미커밋 상태였고 메인이 추가한 것 아님(이 기능에 올바른 무시 설정)."
+}

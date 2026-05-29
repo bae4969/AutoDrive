@@ -1,0 +1,13 @@
+{
+  "run_id": "2026-05-29T20-43-03__claude__summarize-ld19-pdf-to-md",
+  "engine": "claude",
+  "started_at": "2026-05-29T20:35:00+09:00",
+  "completed_at": "2026-05-29T20:43:03+09:00",
+  "status": "done",
+  "mode": "lite",
+  "request": "doc/Lidar-LD19.pdf 요약 md화 + 웹에서 CAD 정보 찾아 다운로드",
+  "plan_summary": "pdftotext로 Lidar-LD19.pdf(개발매뉴얼 V2.3) 텍스트 추출 → 데이터시트 V2.6 스펙 보강 → picar-x.md 스타일의 한국어 기술 요약 doc/Lidar-LD19.md 작성. 웹 검색으로 LDROBOT 공식 GitHub Product_3D_model release v1.0 발견 → LD19 STEP CAD를 doc/LD19_3D_model/00_ld19-tof_20220315.stp로 다운로드.",
+  "retry_count": 0,
+  "final_verdict": "Pass",
+  "report_body": "## 완료 보고\n\n### 한 일\n- doc/Lidar-LD19.pdf(LD19 Development Manual V2.3) 텍스트를 pdftotext로 추출하고, 공식 LD19 Datasheet V2.6 스펙(측정범위 12m, 정확도 ±45mm, 치수 54×46.29×34.80mm, 905nm Class1 등)을 보강해 한국어 기술 요약 doc/Lidar-LD19.md 신규 작성. 기존 doc/picar-x.md 스타일(표 중심) 일관. 섹션: 주요사양/통신IF/데이터프로토콜/좌표계/개발킷·SDK·ROS/CAD/개정이력.\n- 웹 검색으로 LDROBOT 공식 3D 모델 저장소(ldrobotSensorTeam/Product_3D_model) release v1.0 발견. LD19 STEP CAD(LDROBOT_LiDAR_LD19_3D_STP_V1.0.zip)를 받아 압축 해제 후 doc/LD19_3D_model/00_ld19-tof_20220315.stp로 저장(ISO-10303-21 AP214, 9.3MB).\n- 파싱 예제의 원본 PDF 오타(점2 distance 200mm→220mm)를 보정하고 각주로 명시.\n\n### 자동 검증 결과\n- critic verdict: Pass\n- critic 사유: 사용자 3대 요청(PDF 요약 md화 / 웹 CAD 탐색 / CAD 다운로드) 모두 충족. md 내용이 원본 PDF 추출본과 핵심 프로토콜·좌표계·UART·핀맵·개정이력에서 일치. STEP 파일이 유효한 CAD 모델(file 명령으로 ISO-10303-21 확인). 9개 표 모두 GitHub markdown 정상 렌더(colspan 등 비지원 문법 없음), 핵심 외부 링크 6개 HTTP 200. 코드 변경 없어 하드웨어 동결 규칙 위반 없음. Warning 2건(점2 보정 각주 권장→해소, GrabCAD 링크 봇차단 403→형식 유효).\n- 실행 검증: pdftotext 추출 대조, hex 변환 수학 검증, file 명령 STEP 확인, URL HTTP 상태 확인.\n\n### 사용자가 확인할 것\n- [ ] doc/Lidar-LD19.md를 뷰어에서 열어 표 렌더 확인\n- [ ] doc/LD19_3D_model/00_ld19-tof_20220315.stp를 Fusion360/SolidWorks에서 열어 형상 로드 확인\n- [ ] 데이터시트 V2.6 보강 스펙은 PDF가 아닌 웹 데이터시트 출처임을 인지\n\n### 알려진 한계\n- 데이터시트 스펙은 LD19 Development Manual(요약 대상 PDF)이 아니라 별도 웹 데이터시트 V2.6에서 보강한 값.\n- GrabCAD/Cults3D는 보조 참고 링크(공식 다운로드는 GitHub release).\n"
+}
