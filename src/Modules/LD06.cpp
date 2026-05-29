@@ -1,4 +1,5 @@
 #include "LD06.h"
+#include "Logger.h"
 #include <wiringPi.h>
 #include <wiringSerial.h>
 #include <mutex>
@@ -38,7 +39,7 @@ namespace LD06
 		m_fd = serialOpen("/dev/ttyUSB0", 230400);
 		if (m_fd < 0)
 		{
-			printf("Fail to open serial protocol for LD06\n");
+			LOG_ERROR("Fail to open serial protocol for LD06");
 			return false;
 		}
 

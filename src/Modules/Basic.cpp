@@ -1,4 +1,5 @@
 #include "Basic.h"
+#include "Logger.h"
 #include <wiringPi.h>
 
 namespace Basic
@@ -12,7 +13,7 @@ namespace Basic
 		IsSetGPIO = wiringPiSetup() == 0;
 		if (!IsSetGPIO)
 		{
-			printf("Fail to init GPIO\n");
+			LOG_ERROR("Fail to init GPIO");
 			return false;
 		}
 
@@ -23,7 +24,7 @@ namespace Basic
 	{
 		if (!IsSetGPIO)
 		{
-			printf("GPIO is not initialized\n");
+			LOG_ERROR("GPIO is not initialized");
 			return false;
 		}
 
@@ -37,13 +38,13 @@ namespace Basic
 	{
 		if (!IsSetGPIO)
 		{
-			printf("GPIO is not setted\n");
+			LOG_ERROR("GPIO is not setted");
 			return false;
 		}
 
 		if (m_pinIdx < 0)
 		{
-			printf("This GPIO %d is not init\n", m_pinIdx);
+			LOG_ERROR("This GPIO {} is not init", m_pinIdx);
 			return false;
 		}
 
@@ -56,13 +57,13 @@ namespace Basic
 	{
 		if (!IsSetGPIO)
 		{
-			printf("GPIO is not setted\n");
+			LOG_ERROR("GPIO is not setted");
 			return false;
 		}
 
 		if (!m_isOut)
 		{
-			printf("This GPIO %d is not out mode\n", m_pinIdx);
+			LOG_ERROR("This GPIO {} is not out mode", m_pinIdx);
 			return false;
 		}
 
@@ -75,13 +76,13 @@ namespace Basic
 	{
 		if (!IsSetGPIO)
 		{
-			printf("GPIO is not setted\n");
+			LOG_ERROR("GPIO is not setted");
 			return false;
 		}
 
 		if (!m_isOut)
 		{
-			printf("This GPIO %d is not out mode\n", m_pinIdx);
+			LOG_ERROR("This GPIO {} is not out mode", m_pinIdx);
 			return -1;
 		}
 
@@ -91,13 +92,13 @@ namespace Basic
 	{
 		if (!IsSetGPIO)
 		{
-			printf("GPIO is not setted\n");
+			LOG_ERROR("GPIO is not setted");
 			return false;
 		}
 
 		if (m_isOut)
 		{
-			printf("This GPIO %d is not in mode\n", m_pinIdx);
+			LOG_ERROR("This GPIO {} is not in mode", m_pinIdx);
 			return -1;
 		}
 

@@ -55,10 +55,10 @@ int main(int argc, char **argv)
     }
     catch (...)
     {
-        printf("Argument must be integer value\n");
-        printf("1 : Direct control mode\n");
-        printf("2 : Remote control mode\n");
-        printf("3 : Camera mode\n");
+        LOG_ERROR("Argument must be integer value");
+        LOG_INFO("1 : Direct control mode");
+        LOG_INFO("2 : Remote control mode");
+        LOG_INFO("3 : Camera mode");
         return -1;
     }
 
@@ -68,7 +68,7 @@ int main(int argc, char **argv)
     }
     catch (...)
     {
-        printf("Fail to run PiCar\n");
+        LOG_EXC_ERROR("Fail to run PiCar");
         return -3;
     }
 
@@ -78,10 +78,10 @@ int main(int argc, char **argv)
     }
     catch (...)
     {
-        printf("Fail to release PiCar\n");
+        LOG_EXC_ERROR("Fail to release PiCar");
         return -4;
     }
 
-    printf("End of output\n");
+    LOG_INFO("End of output");
     return 0;
 }

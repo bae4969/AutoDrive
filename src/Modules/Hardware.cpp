@@ -1,4 +1,5 @@
 #include "Hardware.h"
+#include "Logger.h"
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <math.h>
@@ -28,27 +29,27 @@ namespace Hardware
 	{
 		if (!m_leftDir.Init(Basic::GPIO_PIN_REAR_LEFT_DIRECTION, true))
 		{
-			printf("Fail to init rear left direction GPIO\n");
+			LOG_ERROR("Fail to init rear left direction GPIO");
 			return false;
 		}
 		if (!m_rightDir.Init(Basic::GPIO_PIN_REAR_RIGHT_DIRECTION, true))
 		{
-			printf("Fail to init rear right direction GPIO\n");
+			LOG_ERROR("Fail to init rear right direction GPIO");
 			return false;
 		}
 		if (!m_leftMotor.Init(RobotHat::CAR_I2C_CHANNEL_REAR_LEFT))
 		{
-			printf("Fail to init rear left PWM motor\n");
+			LOG_ERROR("Fail to init rear left PWM motor");
 			return false;
 		}
 		if (!m_rightMotor.Init(RobotHat::CAR_I2C_CHANNEL_REAR_RIGHT))
 		{
-			printf("Fail to init rear right PWM motor\n");
+			LOG_ERROR("Fail to init rear right PWM motor");
 			return false;
 		}
 		if (!m_steerMotor.Init(RobotHat::CAR_I2C_CHANNEL_FRONT_STEER, defaultSteerAngle))
 		{
-			printf("Fail to init steer PWM motor\n");
+			LOG_ERROR("Fail to init steer PWM motor");
 			return false;
 		}
 
@@ -61,7 +62,7 @@ namespace Hardware
 
 		if (!m_pubSubClient.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
 		{
-			printf("Fail to init ZMQ for move motor\n");
+			LOG_ERROR("Fail to init ZMQ for move motor");
 			return false;
 		}
 		m_pubSubClient.AddSubTopic("COMMAND_MOVE_MOTOR");
@@ -97,7 +98,7 @@ namespace Hardware
 		}
 
 		if (!isGood)
-			printf("Fail to set rear value\n");
+			LOG_ERROR("Fail to set rear value");
 
 		return isGood;
 	}
@@ -105,7 +106,7 @@ namespace Hardware
 	{
 		if (!m_steerMotor.SetDegree(degree))
 		{
-			printf("Fail to set steer servo motor\n");
+			LOG_ERROR("Fail to set steer servo motor");
 			return false;
 		}
 		return true;
@@ -211,7 +212,7 @@ namespace Hardware
 			}
 			catch (...)
 			{
-				printf("Invalid massage was detected in MoveMotor\n");
+				LOG_EXC_WARN("Invalid massage was detected in MoveMotor");
 			}
 			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
@@ -254,7 +255,7 @@ namespace Hardware
 			}
 			catch (...)
 			{
-				printf("Fail to publish massage in MoveMotor\n");
+				LOG_EXC_ERROR("Fail to publish massage in MoveMotor");
 			}
 			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
@@ -313,12 +314,12 @@ namespace Hardware
 	{
 		if (!m_pitchMotor.Init(RobotHat::CAR_I2C_CHANNEL_CAMERA_TILT, -defaultPitchDegree))
 		{
-			printf("Fail to init steer PWM motor\n");
+			LOG_ERROR("Fail to init steer PWM motor");
 			return false;
 		}
 		if (!m_yawMotor.Init(RobotHat::CAR_I2C_CHANNEL_CAMERA_YAW, -defaultYawDegree))
 		{
-			printf("Fail to init steer PWM motor\n");
+			LOG_ERROR("Fail to init steer PWM motor");
 			return false;
 		}
 
@@ -331,7 +332,7 @@ namespace Hardware
 
 		if (!m_pubSubClient.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
 		{
-			printf("Fail to init ZMQ for camera motor\n");
+			LOG_ERROR("Fail to init ZMQ for camera motor");
 			return false;
 		}
 		m_pubSubClient.AddSubTopic("COMMAND_CAMERA_MOTOR");
@@ -355,7 +356,7 @@ namespace Hardware
 	{
 		if (!m_pitchMotor.SetDegree(-degree))
 		{
-			printf("Fail to set camera pitch servo motor\n");
+			LOG_ERROR("Fail to set camera pitch servo motor");
 			return false;
 		}
 		return true;
@@ -364,7 +365,7 @@ namespace Hardware
 	{
 		if (!m_yawMotor.SetDegree(-degree))
 		{
-			printf("Fail to set camera yaw servo motor\n");
+			LOG_ERROR("Fail to set camera yaw servo motor");
 			return false;
 		}
 		return true;
@@ -468,7 +469,7 @@ namespace Hardware
 			}
 			catch (...)
 			{
-				printf("Invalid massage was detected in CameraMotor\n");
+				LOG_EXC_WARN("Invalid massage was detected in CameraMotor");
 			}
 			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
@@ -511,7 +512,7 @@ namespace Hardware
 			}
 			catch (...)
 			{
-				printf("Fail to publish massage in CameraMotor\n");
+				LOG_EXC_ERROR("Fail to publish massage in CameraMotor");
 			}
 			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
@@ -564,14 +565,14 @@ namespace Hardware
 			!m_tring.Init(Basic::GPIO_PIN_SONIC_TRING, true) ||
 			!m_echo.Init(Basic::GPIO_PIN_SONIC_ECHO, false))
 		{
-			printf("Fail to init sonic sensor GPIO\n");
+			LOG_ERROR("Fail to init sonic sensor GPIO");
 			return false;
 		}
 		if (!m_left.Init(0) ||
 			!m_center.Init(1) ||
 			!m_right.Init(2))
 		{
-			printf("Fail to init floor sensor\n");
+			LOG_ERROR("Fail to init floor sensor");
 			return false;
 		}
 
@@ -585,7 +586,7 @@ namespace Hardware
 
 		if (!m_pubSubClient.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
 		{
-			printf("Fail to init ZMQ for sensor\n");
+			LOG_ERROR("Fail to init ZMQ for sensor");
 			return false;
 		}
 		m_pubSubClient.ChangePubTopic("STATE_SENSOR");
@@ -691,7 +692,7 @@ namespace Hardware
 			}
 			catch (...)
 			{
-				printf("Fail to publish massage in Sensor\n");
+				LOG_EXC_ERROR("Fail to publish massage in Sensor");
 			}
 			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
@@ -721,12 +722,12 @@ namespace Hardware
 			// !m_ledBackLeft.Init(Basic::GPIO_PIN_LCD_LED_BACK_LEFT, true) ||	// Do not use when using picar
 			!m_ledBackRight.Init(Basic::GPIO_PIN_LCD_LED_BACK_RIGHT, true))
 		{
-			printf("Fail to init LCD LED GPIO\n");
+			LOG_ERROR("Fail to init LCD LED GPIO");
 			return false;
 		}
 		if (!EP0152::LCD_I2C::Init())
 		{
-			printf("Fail to init LCD Display\n");
+			LOG_ERROR("Fail to init LCD Display");
 			return false;
 		}
 
@@ -746,7 +747,7 @@ namespace Hardware
 
 		if (!m_pubSubClient.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
 		{
-			printf("Fail to init ZMQ for LCD\n");
+			LOG_ERROR("Fail to init ZMQ for LCD");
 			return false;
 		}
 		m_pubSubClient.ChangePubTopic("STATE_LCD_DISPLAY");
@@ -759,6 +760,27 @@ namespace Hardware
 		m_isStop = true;
 		m_updateThread.join();
 		m_pubThread.join();
+	}
+
+	float LcdDisplay::GetCpuTemp()
+	{
+		shared_lock lock(m_syncMutex);
+		return m_cpuTemp;
+	}
+	int LcdDisplay::GetThrottleState()
+	{
+		shared_lock lock(m_syncMutex);
+		return m_throttleState;
+	}
+	float LcdDisplay::GetBatteryVoltage()
+	{
+		shared_lock lock(m_syncMutex);
+		return m_batteryVoltage;
+	}
+	int LcdDisplay::GetBatteryPercent()
+	{
+		shared_lock lock(m_syncMutex);
+		return m_batteryPercent;
 	}
 
 	void LcdDisplay::updateThreadFunc()
@@ -789,13 +811,7 @@ namespace Hardware
 					tempStr += tempStrBuf;
 				pclose(tempFile);
 
-				try
-				{
-					sscanf(tempStr.c_str(), "temp=%f\'C", &temp);
-				}
-				catch (...)
-				{
-				}
+				sscanf(tempStr.c_str(), "temp=%f\'C", &temp);
 			}
 			if (throFile)
 			{
@@ -804,13 +820,7 @@ namespace Hardware
 					tempStr += throStrBuf;
 				pclose(throFile);
 
-				try
-				{
-					sscanf(tempStr.c_str(), "throttled=%x", &thro);
-				}
-				catch (...)
-				{
-				}
+				sscanf(tempStr.c_str(), "throttled=%x", &thro);
 			}
 
 			int batteryRaw = m_battery.GetValue();
@@ -887,7 +897,7 @@ namespace Hardware
 			}
 			catch (...)
 			{
-				printf("Fail to publish massage in LCD\n");
+				LOG_EXC_ERROR("Fail to publish massage in LCD");
 			}
 			this_thread::sleep_for(MOTION_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
@@ -897,14 +907,14 @@ namespace Hardware
 	{
 		if (!LD06::Lidar::Init())
 		{
-			printf("Fail to init Lidar sensor\n");
+			LOG_ERROR("Fail to init Lidar sensor");
 			return false;
 		}
 
 		m_isStop = false;
 		if (!m_pubSubClient.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
 		{
-			printf("Fail to init ZMQ for Lidar sensor\n");
+			LOG_ERROR("Fail to init ZMQ for Lidar sensor");
 			return false;
 		}
 		m_pubSubClient.ChangePubTopic("STATE_LIDAR_SENSOR");
@@ -944,7 +954,7 @@ namespace Hardware
 			}
 			catch (...)
 			{
-				printf("Fail to publish massage in Lidar sensor\n");
+				LOG_EXC_ERROR("Fail to publish massage in Lidar sensor");
 			}
 			this_thread::sleep_for(LIDAR_DALTA_DUATION - (chrono::steady_clock::now() - start));
 		}
@@ -960,7 +970,7 @@ namespace Hardware
 
 		if (!m_pubSubClient.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
 		{
-			printf("Fail to init ZMQ for camera sensor\n");
+			LOG_ERROR("Fail to init ZMQ for camera sensor");
 			return false;
 		}
 		m_pubSubClient.ChangePubTopic("STATE_CAMERA_SENSOR");
@@ -1001,7 +1011,7 @@ namespace Hardware
 		}
 		catch (...)
 		{
-			printf("Fail to publish massage in CameraSensor\n");
+			LOG_EXC_ERROR("Fail to publish massage in CameraSensor");
 		}
 	}
 	void CameraSensor::pubJpgEncodedImage()
@@ -1027,7 +1037,7 @@ namespace Hardware
 		}
 		catch (...)
 		{
-			printf("Fail to publish massage in CameraSensor\n");
+			LOG_EXC_ERROR("Fail to publish massage in CameraSensor");
 		}
 	}
 	void CameraSensor::pubPngEncodedImage()
@@ -1053,7 +1063,7 @@ namespace Hardware
 		}
 		catch (...)
 		{
-			printf("Fail to publish massage in CameraSensor\n");
+			LOG_EXC_ERROR("Fail to publish massage in CameraSensor");
 		}
 	}
 	void CameraSensor::pubThreadFunc()
@@ -1090,7 +1100,7 @@ namespace Hardware
 			filesystem::create_directories("./record_data");
 
 		for (int i = 5; i > 0 && !m_isStop; i--){
-			printf("VideoWriter will start in %d seconds.\n", i);
+			LOG_INFO("VideoWriter will start in {} seconds.", i);
 			this_thread::sleep_for(chrono::seconds(1));
 		}
 
@@ -1122,10 +1132,10 @@ namespace Hardware
 				if (videoWriter.isOpened())
 				{
 					last_record = start;
-					printf("VideoWriter opened for %s\n", filename.c_str());
+					LOG_INFO("VideoWriter opened for {}", filename.c_str());
 				}
 				else
-					printf("Fail to open VideoWriter for %s\n", filename.c_str());
+					LOG_ERROR("Fail to open VideoWriter for {}", filename.c_str());
 			}
 
 			if (videoWriter.isOpened())

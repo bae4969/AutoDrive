@@ -1,4 +1,5 @@
 #include "Camera.h"
+#include "Logger.h"
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <chrono>
@@ -30,6 +31,7 @@ namespace Camera
 		}
 		catch (...)
 		{
+			LOG_EXC_ERROR("Fail to convert camera buffer to Mat");
 			return false;
 		}
 	}
@@ -64,24 +66,24 @@ namespace Camera
 
 		if (m_cameraManager.start() < 0)
 		{
-			printf("Fail to start camera manager\n");
+			LOG_ERROR("Fail to start camera manager");
 			return false;
 		}
 
 		if (m_cameraManager.cameras().size() < 2)
 		{
-			printf("Two camera was not found [%d]\n", m_cameraManager.cameras().size());
+			LOG_ERROR("Two camera was not found [{}]", m_cameraManager.cameras().size());
 			return false;
 		}
 
 		if (startCamera(0) == false)
 		{
-			printf("Fail to init camera 0\n");
+			LOG_ERROR("Fail to init camera 0");
 			return false;
 		}
 		if (startCamera(1) == false)
 		{
-			printf("Fail to init camera 1\n");
+			LOG_ERROR("Fail to init camera 1");
 			return false;
 		}
 
@@ -97,14 +99,14 @@ namespace Camera
 		const auto &camera = m_camera[cam_idx] = m_cameraManager.cameras()[cam_idx];
 		if (camera->acquire() < 0)
 		{
-			printf("Fail to acquire camera %d\n", cam_idx);
+			LOG_ERROR("Fail to acquire camera {}", cam_idx);
 			return false;
 		}
 
 		auto &cameraConfig = m_config[cam_idx] = camera->generateConfiguration({libcamera::StreamRole::VideoRecording});
 		if (!cameraConfig)
 		{
-			printf("Fail to generate configuration for camera %d\n", cam_idx);
+			LOG_ERROR("Fail to generate configuration for camera {}", cam_idx);
 			return false;
 		}
 		cameraConfig->at(0).pixelFormat = libcamera::formats::RGB888;
@@ -114,7 +116,7 @@ namespace Camera
 		cameraConfig->validate();
 		if (camera->configure(cameraConfig.get()) < 0)
 		{
-			printf("Fail to configure camera %d\n", cam_idx);
+			LOG_ERROR("Fail to configure camera {}", cam_idx);
 			return false;
 		}
 
@@ -123,7 +125,7 @@ namespace Camera
 		{
 			if (allocator->allocate(cfg.stream()) < 0)
 			{
-				printf("Fail to allocate buffer for camera %d\n", cam_idx);
+				LOG_ERROR("Fail to allocate buffer for camera {}", cam_idx);
 				return false;
 			}
 		}
@@ -134,12 +136,12 @@ namespace Camera
 			auto request = camera->createRequest();
 			if (!request)
 			{
-				printf("Fail to create request for camera %d\n", cam_idx);
+				LOG_ERROR("Fail to create request for camera {}", cam_idx);
 				continue;
 			}
 			if (request->addBuffer(cameraStream, buf.get()) < 0)
 			{
-				printf("Fail to add buffer to request for camera %d\n", cam_idx);
+				LOG_ERROR("Fail to add buffer to request for camera {}", cam_idx);
 				continue;
 			}
 			m_requests[cam_idx].push_back(std::move(request));
@@ -169,17 +171,17 @@ namespace Camera
 						}
 					}
 
-					if (m_frameCount[cam_idx] % m_frameRate == 0)
+					if (m_frameCount[cam_idx] % (m_frameRate * 10) == 0)
 					{
 						auto elapsed = currentTime - m_frameCounterStart[cam_idx];
-						printf("Camera %d FPS: %f\n", cam_idx, m_frameCount[cam_idx] * 1000.0 / chrono::duration_cast<chrono::milliseconds>(elapsed).count());
+						LOG_INFO("Camera {} FPS: {}", cam_idx, m_frameCount[cam_idx] * 1000.0 / chrono::duration_cast<chrono::milliseconds>(elapsed).count());
 						m_frameCounterStart[cam_idx] = currentTime;
 						m_frameCount[cam_idx] = 0;
 					}
 				}
 				catch (...)
 				{
-					printf("Fail to execute 'requestCompleted' callback for camera %d\n", cam_idx);
+					LOG_EXC_ERROR("Fail to execute 'requestCompleted' callback for camera {}", cam_idx);
 				}
 
 				request->reuse(libcamera::Request::ReuseBuffers);
@@ -192,7 +194,7 @@ namespace Camera
 
 		if (camera->start(camcontrols.get()) < 0)
 		{
-			printf("Failed to start camera %d\n", cam_idx);
+			LOG_ERROR("Failed to start camera {}", cam_idx);
 			return false;
 		}
 

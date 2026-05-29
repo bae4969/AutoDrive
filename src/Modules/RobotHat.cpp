@@ -1,5 +1,6 @@
 #include "RobotHat.h"
 #include "Basic.h"
+#include "Logger.h"
 #include <wiringPiI2C.h>
 #include <vector>
 #include <math.h>
@@ -27,13 +28,13 @@ namespace RobotHat
 		CAR_I2C_FD = wiringPiI2CSetupInterface("/dev/i2c-1", CAR_I2C_ADDRESS);
 		if (CAR_I2C_FD < 0)
 		{
-			printf("Fail to init CAR I2C FD\n");
+			LOG_ERROR("Fail to init CAR I2C FD");
 			return false;
 		}
 
 		if (wiringPiI2CWrite(CAR_I2C_FD, 0x2C) < 0)
 		{
-			printf("Fail to init CAR I2C\n");
+			LOG_ERROR("Fail to init CAR I2C");
 			CAR_I2C_FD = -1;
 			return false;
 		}
@@ -58,7 +59,7 @@ namespace RobotHat
 	{
 		if (CAR_I2C_FD < 0)
 		{
-			printf("CAR I2C FD is not initialized\n");
+			LOG_ERROR("CAR I2C FD is not initialized");
 			return false;
 		}
 
@@ -68,7 +69,7 @@ namespace RobotHat
 			!SetPrescaler(prescaler) ||
 			!SetPeriod(period))
 		{
-			printf("Fail to init CAR I2C %d\n", m_channel);
+			LOG_ERROR("Fail to init CAR I2C {}", m_channel);
 			return false;
 		}
 
@@ -78,7 +79,7 @@ namespace RobotHat
 	{
 		if (CAR_I2C_FD < 0)
 		{
-			printf("CAR I2C FD is not setted\n");
+			LOG_ERROR("CAR I2C FD is not setted");
 			return false;
 		}
 
@@ -90,7 +91,7 @@ namespace RobotHat
 		}
 		if (ret < 0)
 		{
-			printf("Fail to write CAR I2C %d pulse width\n", reg);
+			LOG_ERROR("Fail to write CAR I2C {} pulse width", reg);
 			return false;
 		}
 
@@ -104,7 +105,7 @@ namespace RobotHat
 
 		if (CAR_I2C_FD < 0)
 		{
-			printf("CAR I2C FD is not setted\n");
+			LOG_ERROR("CAR I2C FD is not setted");
 			return false;
 		}
 
@@ -148,7 +149,7 @@ namespace RobotHat
 	{
 		if (CAR_I2C_FD < 0)
 		{
-			printf("CAR I2C FD is not setted\n");
+			LOG_ERROR("CAR I2C FD is not setted");
 			return false;
 		}
 
@@ -160,7 +161,7 @@ namespace RobotHat
 		}
 		if (ret < 0)
 		{
-			printf("Fail to write CAR I2C %d prescaler\n", reg);
+			LOG_ERROR("Fail to write CAR I2C {} prescaler", reg);
 			return false;
 		}
 
@@ -171,7 +172,7 @@ namespace RobotHat
 	{
 		if (CAR_I2C_FD < 0)
 		{
-			printf("CAR I2C FD is not setted\n");
+			LOG_ERROR("CAR I2C FD is not setted");
 			return false;
 		}
 
@@ -183,7 +184,7 @@ namespace RobotHat
 		}
 		if (ret < 0)
 		{
-			printf("Fail to write CAR I2C %d period\n", reg);
+			LOG_ERROR("Fail to write CAR I2C {} period", reg);
 			return false;
 		}
 
@@ -284,7 +285,7 @@ namespace RobotHat
 	{
 		if (CAR_I2C_FD < 0)
 		{
-			printf("CAR I2C FD is not initialized\n");
+			LOG_ERROR("CAR I2C FD is not initialized");
 			return false;
 		}
 
@@ -295,7 +296,7 @@ namespace RobotHat
 	{
 		if (CAR_I2C_FD < 0)
 		{
-			printf("CAR I2C FD is not setted\n");
+			LOG_ERROR("CAR I2C FD is not setted");
 			return -1;
 		}
 

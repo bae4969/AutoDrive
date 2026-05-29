@@ -1,4 +1,5 @@
 #include "EP0152.h"
+#include "Logger.h"
 #include <wiringPiI2C.h>
 #include <shared_mutex>
 
@@ -16,7 +17,7 @@ namespace EP0152
 		LCD_I2C_FD = wiringPiI2CSetupInterface("/dev/i2c-1", LCD_I2C_ADDRESS);
 		if (LCD_I2C_FD < 0)
 		{
-			printf("Failed to open I2C bus");
+			LOG_ERROR("Failed to open I2C bus");
 			return false;
 		}
 
@@ -43,7 +44,7 @@ namespace EP0152
 	{
 		if (LCD_I2C_FD < 0)
 		{
-			printf("LCD I2C FD is not initialized\n");
+			LOG_ERROR("LCD I2C FD is not initialized");
 			return false;
 		}
 
@@ -74,7 +75,7 @@ namespace EP0152
 			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x2E) < 0 ||		   // SSD1306_DEACTIVATE_SCROLL
 			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0xAF) < 0)		   // SSD1306_DISPLAY_ON
 		{
-			printf("Fail to init LCD I2C\n");
+			LOG_ERROR("Fail to init LCD I2C");
 			return false;
 		}
 
@@ -93,7 +94,7 @@ namespace EP0152
 			m_img8.cols != img8.cols ||
 			m_img8.cols != img8.cols)
 		{
-			printf("Image data type is not same in LCD I2C\n");
+			LOG_ERROR("Image data type is not same in LCD I2C");
 			return false;
 		}
 
@@ -105,7 +106,7 @@ namespace EP0152
 			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x00) < 0 || // Page start address
 			wiringPiI2CWriteReg8(LCD_I2C_FD, 0x00, 0x03) < 0)	// Page end address
 		{
-			printf("Fail to reset LCD I2C\n");
+			LOG_ERROR("Fail to reset LCD I2C");
 			return false;
 		}
 
@@ -127,7 +128,7 @@ namespace EP0152
 
 				if (wiringPiI2CWriteReg8(LCD_I2C_FD, 0x40, totData) < 0)
 				{
-					printf("Fail to write LCD I2C data\n");
+					LOG_ERROR("Fail to write LCD I2C data");
 					return false;
 				}
 			}

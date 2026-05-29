@@ -1,4 +1,5 @@
 #include "Protocol.h"
+#include "Logger.h"
 
 namespace Protocol
 {
@@ -17,7 +18,7 @@ namespace Protocol
 	{
 		if (CONTEXT == NULL)
 		{
-			printf("Protocol is not initialized\n");
+			LOG_ERROR("Protocol is not initialized");
 			return false;
 		}
 
@@ -55,6 +56,7 @@ namespace Protocol
 		}
 		catch (...)
 		{
+			LOG_EXC_WARN("Fail to publish message");
 		}
 	}
 	void PubSubClient::AddSubTopic(std::string topic)
@@ -73,6 +75,7 @@ namespace Protocol
 		}
 		catch (...)
 		{
+			LOG_EXC_WARN("Fail to receive message");
 			return false;
 		}
 	}
@@ -90,7 +93,7 @@ namespace Protocol
 		if (enableCurve)
 		{
 			if (curveSecretKey.size() != 40)
-				printf("CURVE enabled but server secret key invalid (need 40-char Z85) - running PLAINTEXT\n");
+				LOG_WARN("CURVE enabled but server secret key invalid (need 40-char Z85) - running PLAINTEXT");
 			else
 			{
 				m_xSubSocket->set(zmq::sockopt::curve_server, true);
@@ -115,6 +118,7 @@ namespace Protocol
 				}
 				catch (...)
 				{
+					LOG_EXC_DEBUG("Proxy stopped");
 				}
 			},
 			m_xSubSocket,

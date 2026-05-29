@@ -148,6 +148,10 @@ namespace Hardware
 	public:
 		bool Init(float highVoltage, float lowVoltage);
 		void Release();
+		float GetCpuTemp();
+		int GetThrottleState();
+		float GetBatteryVoltage();
+		int GetBatteryPercent();
 	};
 	class LidarSensor : public LD06::Lidar
 	{

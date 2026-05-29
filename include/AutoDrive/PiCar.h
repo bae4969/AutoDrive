@@ -41,12 +41,14 @@ namespace PiCar
 
 		std::thread m_subThread;
 		std::thread m_pubThread;
+		std::thread m_statusThread;
 
 		bool isConnected();
 		bool updateCameraImage();
 		void executeKeyInput(char ch);
 		void subThreadFunc();
 		void pubThreadFunc();
+		void statusLogThreadFunc();
 
 		bool initBasic();
 		bool initProtocol();

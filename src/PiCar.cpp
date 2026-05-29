@@ -1,4 +1,5 @@
 #include "PiCar.h"
+#include "Logger.h"
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <math.h>
@@ -17,7 +18,7 @@ namespace PiCar
 	{
 		m_curMode = PICAR_MODE_NOT_SET;
 		if (m_iniParser.Load("./AutoDrive.ini") == false)
-			printf("Fail to load config file, so use default settings.\n");
+			LOG_WARN("Fail to load config file, so use default settings.");
 
 		bool isGood = false;
 		switch (mode)
@@ -48,19 +49,21 @@ namespace PiCar
 
 		if (!isGood)
 		{
-			printf("Fail to init picar\n");
+			LOG_ERROR("Fail to init picar");
 			return false;
 		}
 
 		m_curMode = mode;
-		printf("Success to init PiCar\n");
+		m_isStop = false;
+		m_statusThread = thread(&PiCar::statusLogThreadFunc, this);
+		LOG_INFO("Success to init PiCar");
 		return true;
 	}
 	bool PiCar::initBasic()
 	{
 		if (!Basic::InitBasic())
 		{
-			printf("Fail to init Basic\n");
+			LOG_ERROR("Fail to init Basic");
 			return false;
 		}
 
@@ -70,7 +73,7 @@ namespace PiCar
 	{
 		if (!Protocol::InitProtocol())
 		{
-			printf("Fail to init protocol\n");
+			LOG_ERROR("Fail to init protocol");
 			return false;
 		}
 
@@ -90,11 +93,11 @@ namespace PiCar
 		if (!m_pubSubClient.Init(PROXY_XSUB_STR, PROXY_XPUB_STR) ||
 			!m_pubSubServer.Init(xPubConnStrs, xSubConnStrs, enableCurve, curveSecretKey))
 		{
-			printf("Fail to init proxy server\n");
+			LOG_ERROR("Fail to init proxy server");
 			return false;
 		}
 		if (enableCurve)
-			printf("External comms secured with CURVE. Server public key: %s\n", curvePublicKey.c_str());
+			LOG_INFO("External comms secured with CURVE. Server public key: {}", curvePublicKey.c_str());
 		m_pubSubClient.AddSubTopic("COMMAND_PICAR");
 		m_pubSubClient.ChangePubTopic("STATE_PICAR");
 
@@ -108,12 +111,12 @@ namespace PiCar
 
 		if (!RobotHat::InitRobotHat())
 		{
-			printf("Fail to init Robot Hat\n");
+			LOG_ERROR("Fail to init Robot Hat");
 			return false;
 		}
 		if (!m_moveMotor.Init(defaultSteerAngle))
 		{
-			printf("Fail to init steer motor module\n");
+			LOG_ERROR("Fail to init steer motor module");
 			return false;
 		}
 		// if (!m_cameraMotor.Init(defaultPitchAngle, defaultYawAngle))
@@ -123,7 +126,7 @@ namespace PiCar
 		// }
 		if (!m_sensors.Init())
 		{
-			printf("Fail to init sensors\n");
+			LOG_ERROR("Fail to init sensors");
 			return false;
 		}
 
@@ -136,12 +139,12 @@ namespace PiCar
 
 		if (!EP0152::InitEP0152())
 		{
-			printf("Fail to init EP0152\n");
+			LOG_ERROR("Fail to init EP0152");
 			return false;
 		}
 		if (!m_display.Init(batteryHighVoltage, batteryLowVoltage))
 		{
-			printf("Fail to init LCD protocol\n");
+			LOG_ERROR("Fail to init LCD protocol");
 			return false;
 		}
 
@@ -151,7 +154,7 @@ namespace PiCar
 	{
 		if (!m_lidar.Init())
 		{
-			printf("Fail to init LD06\n");
+			LOG_ERROR("Fail to init LD06");
 			return false;
 		}
 
@@ -166,7 +169,7 @@ namespace PiCar
 		bool is_record = m_iniParser.GetBool("camera", "is_record", false);
 		if (!m_cameraSensor.Init(w, h, bufSize, frameRate, is_record))
 		{
-			printf("Fail to init camera sensor module\n");
+			LOG_ERROR("Fail to init camera sensor module");
 			return false;
 		}
 
@@ -175,6 +178,10 @@ namespace PiCar
 
 	void PiCar::Release()
 	{
+		m_isStop = true;
+		if (m_statusThread.joinable())
+			m_statusThread.join();
+
 		switch (m_curMode)
 		{
 		case PICAR_MODE_DIRECT:
@@ -474,7 +481,7 @@ namespace PiCar
 				}
 				catch (...)
 				{
-					printf("Invalid massage was detected in PiCar\n");
+					LOG_EXC_WARN("Invalid massage was detected in PiCar");
 				}
 			}
 
@@ -500,6 +507,46 @@ namespace PiCar
 		}
 	}
 
+	void PiCar::statusLogThreadFunc()
+	{
+		pthread_setname_np(pthread_self(), "Picar Status Log Thread");
+
+		const auto STATUS_LOG_INTERVAL = chrono::seconds(10);
+		auto nextLog = chrono::steady_clock::now() + STATUS_LOG_INTERVAL;
+		while (!m_isStop)
+		{
+			if (chrono::steady_clock::now() >= nextLog)
+			{
+				nextLog += STATUS_LOG_INTERVAL;
+
+				float batteryVoltage = m_display.GetBatteryVoltage();
+				int batteryPercent = m_display.GetBatteryPercent();
+				float cpuTemp = m_display.GetCpuTemp();
+				int throttleState = m_display.GetThrottleState();
+
+				if (m_curMode == PICAR_MODE_CAMERA)
+				{
+					// camera mode does not init Robot HAT (motor/sensors); log system status only
+					LOG_INFO("STATUS | batt={:.2f}V({}%) cpu={:.1f}C throttle=0x{:X}",
+							 batteryVoltage, batteryPercent, cpuTemp, throttleState);
+				}
+				else
+				{
+					int speed = m_moveMotor.GetRearValue();
+					float steer = m_moveMotor.GetSteerDegree();
+					double sonic = m_sensors.GetSonicSensorValue();
+					int floorLeft = m_sensors.GetFloorLeftValue();
+					int floorCenter = m_sensors.GetFloorCenterValue();
+					int floorRight = m_sensors.GetFloorRightValue();
+					LOG_INFO("STATUS | speed={} steer={:.1f} sonic={:.0f}mm floor=[{},{},{}] batt={:.2f}V({}%) cpu={:.1f}C throttle=0x{:X}",
+							 speed, steer, sonic, floorLeft, floorCenter, floorRight,
+							 batteryVoltage, batteryPercent, cpuTemp, throttleState);
+				}
+			}
+			this_thread::sleep_for(chrono::milliseconds(100));
+		}
+	}
+
 	void PiCar::Stop()
 	{
 		m_moveMotor.StopRearNow();
@@ -519,7 +566,7 @@ namespace PiCar
 			runCameraMode();
 			break;
 		default:
-			printf("Invalid mode\n");
+			LOG_ERROR("Invalid mode");
 			return;
 		}
 	}
