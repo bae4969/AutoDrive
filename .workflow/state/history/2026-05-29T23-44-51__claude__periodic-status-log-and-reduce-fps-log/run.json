@@ -1,0 +1,13 @@
+{
+  "run_id": "2026-05-29T23-44-51__claude__periodic-status-log-and-reduce-fps-log",
+  "engine": "claude",
+  "started_at": "2026-05-29T23:44:51+09:00",
+  "completed_at": "2026-05-29T23:44:51+09:00",
+  "status": "done",
+  "mode": "lite",
+  "request": "(1) 외부 상태 송출 시 종합 상태를 주기적으로 남기는 로그, (2) 카메라 FPS 로그 너무 잦아 줄이기. AskUser: FPS는 로그 빈도만↓(실 레이트 유지), 상태 로그 10초, 전 항목 포함.",
+  "plan_summary": "Camera.cpp FPS 로그 조건 %m_frameRate→%(m_frameRate*10)로 10초 주기화(실 frame_rate 불변). LcdDisplay에 getter 4개(cpuTemp/throttle/batteryVoltage/batteryPercent, shared_lock). PiCar에 statusLogThreadFunc(전 모드, 10초마다 LOG_INFO 종합상태; CAMERA 모드는 RobotHat 미초기화라 시스템 상태만 분기). Init서 시작, Release서 m_isStop=true+모듈 release 전에 join.",
+  "retry_count": 0,
+  "final_verdict": "Pass",
+  "report_body": "## 완료 보고 (lite)\n\n### 한 일\n- Camera.cpp: FPS 로그 `% (m_frameRate*10)`로 10초마다(카메라당 1초→10초). 실제 frame_rate(30)·FrameDurationLimits 불변, 로그 빈도만 1/10. FPS 계산식 유지.\n- Hardware.h/.cpp: LcdDisplay public getter 4개(GetCpuTemp/GetThrottleState/GetBatteryVoltage/GetBatteryPercent), 각 shared_lock(m_syncMutex).\n- PiCar.h/.cpp: m_statusThread + statusLogThreadFunc. Init서 m_curMode=mode→m_isStop=false→스레드 시작(전 모드). Release 시작부서 m_isStop=true+joinable시 join(모듈 release보다 먼저→getter-teardown 경합 방지). 10초마다 LOG_INFO. CAMERA 모드(initRobotHat 미호출, 모터·센서 미초기화)는 batt/cpu/throttle만; DIRECT/REMOTE는 speed/steer/sonic/floor[L,C,R]+시스템 전부.\n\n### 자동 검증 결과\n- critic verdict: Pass (recommend_full: false)\n- critic 사유: FPS 로그 빈도만↓(실 레이트 유지) 확인, 상태 로그 10초·전 항목, 스레드 수명주기 안전(C++20 atomic<bool> zero-init=false, m_curMode thread-creation happens-before, join이 모듈 release 전), CAMERA 분기가 미초기화 모듈 getter 호출 코드상 배제(GPIO 에러 회피), getter shared_lock 동시성 안전, 빌드 exit0 신규경고0 fmt 포맷 통과, untouchable 무변경. Warning 2건(비차단): m_isStop 명시 초기화자 부재(C++20 zero-init이라 안전, 기존 의존) / 비-CAMERA가 atomic getter 락 없이 읽음(기존 updateCameraImage 동일 패턴, race 없음).\n- 실행 테스트: cmake --build exit 0. 상태 로그 포맷 standalone 렌더 확인('STATUS | speed=120 steer=-5.5 sonic=342mm floor=[1500,80,1490] batt=7.82V(74%) cpu=53.4C throttle=0x0' / CAMERA 'STATUS | batt=7.82V(74%) cpu=53.4C throttle=0x0').\n\n### 사용자가 확인할 것 (수동, 로봇 구동)\n- [ ] DIRECT/REMOTE: 10초마다 'STATUS | speed.. steer.. sonic.. floor[..] batt.. cpu.. throttle..' 1줄.\n- [ ] CAMERA: STATUS가 batt/cpu/throttle만 + 모터/센서 GPIO 에러 로그 없음.\n- [ ] 'Camera N FPS' 로그가 ~10초마다(드물게), FPS 수치는 ~30 유지.\n- [ ] Ctrl+C 종료 시 hang/crash 없이 statusThread 정상 join.\n\n### 알려진 한계\n- 이번 run 포함 직전 2개 lite run(printf→LOG, catch-exception-detail)이 working tree에 미커밋 누적 — 파일 교차로 분리 어려워 logging 일괄 커밋."
+}

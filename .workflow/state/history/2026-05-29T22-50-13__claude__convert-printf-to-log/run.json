@@ -1,0 +1,13 @@
+{
+  "run_id": "2026-05-29T22-50-13__claude__convert-printf-to-log",
+  "engine": "claude",
+  "started_at": "2026-05-29T22:50:13+09:00",
+  "completed_at": "2026-05-29T22:50:13+09:00",
+  "status": "done",
+  "mode": "lite",
+  "request": "printf 모두 로그 함수로 변경 (spdlog LOG_* 매크로로 전환).",
+  "plan_summary": "src 9개 .cpp의 활성 printf 103개를 LOG_*로 1:1 전환(%d/%s/%f→{}, 끝 \\n 제거, 레벨 매핑 ERROR 89/INFO 9/WARN 5). 각 .cpp에 #include Logger.h 추가(AutoDrive.cpp는 기존 보유). 예외 유지: signalHandler 5개(async-signal-safety), Logger.cpp 자기참조 1개, 주석 1개, sprintf(LCD) 3개.",
+  "retry_count": 0,
+  "final_verdict": "Pass",
+  "report_body": "## 완료 보고 (lite)\n\n### 한 일\n- src/Modules/{Basic,RobotHat,EP0152,LD06,Protocol,Camera,Hardware}.cpp + src/PiCar.cpp + src/AutoDrive.cpp: 활성 printf **103개를 LOG_*로 전환**. 변환 규칙: C 포맷(%d/%s/%f)→fmt({}), 끝 \\n 제거, 레벨 ERROR 89(실패경로)/INFO 9(Success·End·VideoWriter 2·Camera FPS·mode설명 3·CURVE 공개키)/WARN 5(config폴백·Invalid massage 2·CURVE PLAINTEXT 폴백).\n- 각 .cpp에 #include \"Logger.h\" 1개씩 추가(AutoDrive.cpp는 이전 턴에 이미 보유).\n\n### 의도적 printf 유지 예외\n- Logger.cpp:35 (로거 init 실패 — 로거 자신으로 못 찍음)\n- AutoDrive.cpp:12-16 signalHandler 배너 5개 (async-signal-safety, spdlog mutex 데드락 회피)\n- PiCar.cpp:122 주석 처리된 printf (레거시)\n- Hardware.cpp:845-847 sprintf 3개 (LCD 버퍼 렌더링, printf 아님)\n\n### 자동 검증 결과\n- critic verdict: Pass (recommend_full: false)\n- critic 사유: 제거 printf 103줄 = 추가 LOG_* 103줄 1:1 정합(git diff), 빌드 EXIT 0(9개 TU 강제 재컴파일), fmt9 컴파일타임 포맷 체크가 {}↔인자 개수·순서·타입 전수 검증(다인자 Camera \"{} FPS: {}\" 포함) → format/spdlog 경고 0, \\n 중복 없음, 레벨 매핑 합리(과도 ERROR 없음), include 각 1개(중복 0), 외과적(sprintf·주석·signalHandler·인접로직 불변), untouchable(.h/.ini 미수정, 핀맵/REG_OFFSET/[protocal]/calibration 무침범). Warning 1건(코드 아님): 메인 보고 수치 104/INFO10이 실제 103/INFO9와 1 차이 — AutoDrive.cpp:28 LOG_INFO(\"AutoDrive starting\")는 이전 턴 기존 줄인데 총계에 오집계. 코드는 정확(스퓨리어스 추가·누락 0).\n- 실행 테스트: cmake --build build --parallel EXIT 0, [10/10] Linking. 빌드 경고는 기존 dead code뿐(RobotHat.cpp:138-139 prescaler/period — SetFrequency 이른 return 후 도달불가, gpiod 롤백 잔재 / PiCar defaultPitch·YawAngle — 주석 카메라모터 init 레거시). 이번 변경 무관.\n\n### 사용자가 확인할 것 (수동, 로봇 구동 동반)\n- [ ] ./install/AutoDrive 1 짧게 → 콘솔에 [시각][LEVEL][파일:라인] 패턴 출력(\"Success to init PiCar\" 등) + logs/autodrive.log 적재.\n- [ ] ./install/AutoDrive 3 → \"Camera 0 FPS: <값>\" 다인자 정상.\n- [ ] Ctrl+C → \"Rised interrupt signal!\" 배너 printf로 정상(데드락 없이 종료).\n- [ ] ./install/AutoDrive abc → \"Argument must be integer value\"(ERROR) + mode 설명(INFO).\n\n### 알려진 한계 / 후속\n- 정정: 전환 수치는 103개(ERROR 89/INFO 9/WARN 5), 변경 파일 9개 .cpp.\n- 기존 dead code 경고(prescaler/period, defaultPitch/Yaw)는 레거시라 미정리(legacy-code-handling 기조)."
+}

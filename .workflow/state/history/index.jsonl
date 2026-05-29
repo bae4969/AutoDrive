@@ -5,3 +5,6 @@
 {"run_id":"2026-05-29T21-09-20__claude__add-spdlog-logging-2mb-cap","engine":"claude","status":"done","mode":"lite","request":"spdlog 로깅 라이브러리 추가(최근 2MB 유지)","files_changed":4,"retry_count":0,"final_verdict":"Pass"}
 {"run_id":"2026-05-29T21-40-13__claude__ini-ify-logging-config","engine":"claude","status":"done","mode":"lite","request":"임시물 정리 + 로그 설정 ini화([logging] 섹션)","files_changed":5,"retry_count":0,"final_verdict":"Pass"}
 {"run_id":"2026-05-29T22-15-46__claude__secure-external-comms-zmq-curve","engine":"claude","status":"done","mode":"lite","request":"외부 TCP 통신 ZMQ CURVE 암호화(하드 컷오버, 익명)","files_changed":5,"retry_count":0,"final_verdict":"Pass"}
+{"run_id":"2026-05-29T22-50-13__claude__convert-printf-to-log","engine":"claude","status":"done","mode":"lite","request":"printf 모두 spdlog LOG_*로 전환(103개)","files_changed":9,"retry_count":0,"final_verdict":"Pass"}
+{"run_id":"2026-05-29T23-18-05__claude__catch-exception-detail-logging","engine":"claude","status":"done","mode":"lite","request":"catch에 예외 사유 로깅(LOG_EXC 매크로) + 불필요 try/catch 제거 + 빈 catch 로그","files_changed":6,"retry_count":0,"final_verdict":"Pass"}
+{"run_id":"2026-05-29T23-44-51__claude__periodic-status-log-and-reduce-fps-log","engine":"claude","status":"done","mode":"lite","request":"주기적 종합 상태 로그(10초) + 카메라 FPS 로그 빈도 감소","files_changed":5,"retry_count":0,"final_verdict":"Pass"}
