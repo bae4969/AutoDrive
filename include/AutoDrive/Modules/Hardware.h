@@ -129,10 +129,15 @@ namespace Hardware
 		Basic::GPIO m_ledFrontRight;
 		Basic::GPIO m_ledBackLeft;
 		Basic::GPIO m_ledBackRight;
+		RobotHat::ADC m_battery;
 
 		std::atomic<bool> m_isStop;
 		float m_cpuTemp;
 		int m_throttleState;
+		float m_batteryVoltage;
+		float m_batteryHighVoltage;
+		float m_batteryLowVoltage;
+		int m_batteryPercent;
 		std::shared_mutex m_syncMutex;
 		std::thread m_updateThread;
 		std::thread m_pubThread;
@@ -141,7 +146,7 @@ namespace Hardware
 		void pubThreadFunc();
 
 	public:
-		bool Init();
+		bool Init(float highVoltage, float lowVoltage);
 		void Release();
 	};
 	class LidarSensor : public LD06::Lidar

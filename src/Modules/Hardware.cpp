@@ -714,7 +714,7 @@ namespace Hardware
 		return m_floorRightValue;
 	}
 
-	bool LcdDisplay::Init()
+	bool LcdDisplay::Init(float highVoltage, float lowVoltage)
 	{
 		if (!m_ledFrontLeft.Init(Basic::GPIO_PIN_LCD_LED_FRONT_LEFT, true) ||
 			!m_ledFrontRight.Init(Basic::GPIO_PIN_LCD_LED_FRONT_RIGHT, true) ||
@@ -737,6 +737,11 @@ namespace Hardware
 		m_ledBackRight.SetOutput(false);
 		m_cpuTemp = 0.f;
 		m_throttleState = 0;
+		m_batteryVoltage = 0.f;
+		m_batteryHighVoltage = highVoltage;
+		m_batteryLowVoltage = lowVoltage;
+		m_batteryPercent = 0;
+		m_battery.Init(4); // A4: battery voltage monitor (SunFounder internal ADC channel)
 		m_updateThread = thread(&LcdDisplay::updateThreadFunc, this);
 
 		if (!m_pubSubClient.Init(PROXY_XSUB_STR, PROXY_XPUB_STR))
@@ -764,6 +769,7 @@ namespace Hardware
 		Mat displayImg = Mat::zeros(GetImageSize(), CV_8U);
 		char tempStrBuf[512];
 		char throStrBuf[512];
+		char battStrBuf[512];
 		float temp = -1.f;
 		int thro = -1;
 		bool blink = false;
@@ -807,22 +813,42 @@ namespace Hardware
 				}
 			}
 
+			int batteryRaw = m_battery.GetValue();
+			// SunFounder Robot HAT A4 has a 1/3 voltage divider: Vbat = raw/4095 * 3.3 * 3
+			float battery = batteryRaw < 0 ? -1.f : batteryRaw / 4095.0f * 3.3f * 3.0f;
+
 			{
 				unique_lock lock(m_syncMutex);
 				if (temp > 0.f)
 					m_cpuTemp = temp;
 				if (thro >= 0)
 					m_throttleState = thro;
+				if (battery >= 0.f)
+					m_batteryVoltage = battery;
 
-				m_ledFrontLeft.SetOutput(temp > 60.f || m_throttleState & 0x12);
+				int percent = 0;
+				if (m_batteryHighVoltage > m_batteryLowVoltage)
+				{
+					percent = (int)round((m_batteryVoltage - m_batteryLowVoltage) / (m_batteryHighVoltage - m_batteryLowVoltage) * 100.0f);
+					if (percent < 0)
+						percent = 0;
+					if (percent > 100)
+						percent = 100;
+				}
+				m_batteryPercent = percent;
+				bool batteryLow = m_batteryVoltage > 0.f && m_batteryVoltage <= m_batteryLowVoltage;
+
+				m_ledFrontLeft.SetOutput(temp > 60.f || m_throttleState & 0x12 || batteryLow);
 				m_ledFrontRight.SetOutput(blink);
 				blink = !blink;
 				sprintf(tempStrBuf, "Temp : %.01f", m_cpuTemp);
 				sprintf(throStrBuf, "State : %X", m_throttleState);
+				sprintf(battStrBuf, "Bat:%.02fV %d%%", m_batteryVoltage, m_batteryPercent);
 			}
 
-			putText(displayImg, throStrBuf, Point(0, 14), FONT_HERSHEY_DUPLEX, 0.4, 1);
-			putText(displayImg, tempStrBuf, Point(0, 30), FONT_HERSHEY_DUPLEX, 0.4, 1);
+			putText(displayImg, throStrBuf, Point(0, 10), FONT_HERSHEY_DUPLEX, 0.4, 1);
+			putText(displayImg, tempStrBuf, Point(0, 20), FONT_HERSHEY_DUPLEX, 0.4, 1);
+			putText(displayImg, battStrBuf, Point(0, 30), FONT_HERSHEY_DUPLEX, 0.4, 1);
 
 			SetImage(displayImg);
 
@@ -836,6 +862,8 @@ namespace Hardware
 		chrono::steady_clock::time_point start;
 		double cpuTemp;
 		int throttleState;
+		double batteryVoltage;
+		int batteryPercent;
 
 		while (!m_isStop)
 		{
@@ -844,6 +872,8 @@ namespace Hardware
 				start = chrono::steady_clock::now();
 				cpuTemp = m_cpuTemp;
 				throttleState = m_throttleState;
+				batteryVoltage = m_batteryVoltage;
+				batteryPercent = m_batteryPercent;
 			}
 
 			try
@@ -851,6 +881,8 @@ namespace Hardware
 				zmq::multipart_t pubMsg;
 				pubMsg.addtyp(cpuTemp);
 				pubMsg.addtyp(throttleState);
+				pubMsg.addtyp(batteryVoltage);
+				pubMsg.addtyp(batteryPercent);
 				m_pubSubClient.PublishMessage(pubMsg);
 			}
 			catch (...)

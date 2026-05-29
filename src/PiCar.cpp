@@ -125,12 +125,15 @@ namespace PiCar
 	}
 	bool PiCar::initEP0152()
 	{
+		float batteryHighVoltage = m_iniParser.GetFloat("battery", "high_voltage", 8.4f);
+		float batteryLowVoltage = m_iniParser.GetFloat("battery", "low_voltage", 6.5f);
+
 		if (!EP0152::InitEP0152())
 		{
 			printf("Fail to init EP0152\n");
 			return false;
 		}
-		if (!m_display.Init())
+		if (!m_display.Init(batteryHighVoltage, batteryLowVoltage))
 		{
 			printf("Fail to init LCD protocol\n");
 			return false;
