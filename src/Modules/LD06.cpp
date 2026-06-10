@@ -1,3 +1,5 @@
+#include <glob.h>
+#include <string>
 #include "LD06.h"
 #include "Logger.h"
 #include <wiringPi.h>
@@ -36,7 +38,20 @@ namespace LD06
 	bool Lidar::Init()
 	{
 		m_fd = -1;
-		m_fd = serialOpen("/dev/ttyUSB0", 230400);
+		// USB 시리얼 포트 자동 탐지 (재연결 시 ttyUSB 번호가 바뀌므로 첫 포트를 사용)
+		std::string port;
+		{
+			glob_t g;
+			if (glob("/dev/ttyUSB*", 0, nullptr, &g) == 0 && g.gl_pathc > 0)
+				port = g.gl_pathv[0];
+			globfree(&g);
+		}
+		if (port.empty())
+		{
+			LOG_ERROR("No /dev/ttyUSB* found for LD06");
+			return false;
+		}
+		m_fd = serialOpen(port.c_str(), 230400);
 		if (m_fd < 0)
 		{
 			LOG_ERROR("Fail to open serial protocol for LD06");
