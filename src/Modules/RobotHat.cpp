@@ -304,7 +304,7 @@ namespace RobotHat
 		int first = -1;
 		int second = -1;
 		{
-			shared_lock lock(i2cWriteMutex);
+			unique_lock lock(i2cWriteMutex);
 			result = wiringPiI2CWriteReg16(CAR_I2C_FD, m_channel, 0);
 			first = wiringPiI2CRead(CAR_I2C_FD);
 			second = wiringPiI2CRead(CAR_I2C_FD);
